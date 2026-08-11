@@ -216,10 +216,14 @@ export default function App() {
       <div className="mx-auto max-w-7xl space-y-4">
         <header className="card flex flex-wrap items-center justify-between gap-3">
           <div>
+            <p className="text-xs uppercase tracking-wide text-slate-400">
+              D&D Encounter Builder
+            </p>
+
             <h1 className="text-2xl font-bold">⚔️ D&D Encounter</h1>
 
             <p className="mt-1 text-sm text-slate-300">
-              Ход: {currentCharacter ? currentCharacter.name : '—'} • Раунд{' '}
+              Ход: {currentCharacter ? currentCharacter.name : '—'} Раунд{' '}
               {state.round}
             </p>
           </div>
@@ -310,8 +314,6 @@ export default function App() {
         <section className="card space-y-3">
           <h2 className="text-lg font-semibold">🎲 Кубики</h2>
 
-          <p className="text-sm text-slate-400">Бросьте кубик</p>
-
           <div className="flex flex-wrap gap-2">
             {diceButtons.map((button) => (
               <button
@@ -330,36 +332,11 @@ export default function App() {
             <button className="btn" onClick={() => state.appendFormula('-')}>
               —
             </button>
-
-            <button
-              className="btn btn-danger"
-              onClick={() =>
-                state.setDice({ formula: '', lastResult: null, mode: 'single' })
-              }
-            >
-              ✕ Сбросить ?
-            </button>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-[2fr_auto]">
-            <input
-              className="input"
-              value={state.dice.formula}
-              onChange={(event) =>
-                state.setDice({ formula: event.target.value })
-              }
-              placeholder="Например: 2d6+1d4+3"
-            />
+          <p className="text-sm text-slate-400">Бросьте кубик</p>
 
-            <button
-              className="btn btn-primary"
-              onClick={() => state.rollFormula()}
-            >
-              🎲 Бросить
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {modes.map((mode) => (
               <button
                 key={mode.value}
@@ -374,95 +351,14 @@ export default function App() {
                 {mode.label}
               </button>
             ))}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-slate-400">Быстрые броски:</span>
-
-              {state.quickRolls.length === 0 && (
-                <span className="text-sm text-slate-500">нет</span>
-              )}
-
-              {state.quickRolls.map((quickRoll) => (
-                <div
-                  key={quickRoll.id}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
-                >
-                  <button onClick={() => state.rollFormula(quickRoll.formula)}>
-                    {quickRoll.name}: {quickRoll.formula}
-                  </button>
-
-                  <button
-                    className="text-slate-400 hover:text-red-400"
-                    title="Удалить быстрый бросок"
-                    onClick={() => state.removeQuickRoll(quickRoll.id)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-
-              <button
-                className="btn"
-                onClick={() => state.openModal('addQuickRoll')}
-              >
-                + Добавить быстрый бросок
-              </button>
-            </div>
-          </div>
-
-          {state.dice.lastResult && (
-            <div className="card bg-slate-950">
-              {state.dice.lastResult.error ? (
-                <p className="text-red-400">
-                  Ошибка: {state.dice.lastResult.error}
-                </p>
-              ) : (
-                <>
-                  <p className="text-lg font-bold">
-                    {state.dice.lastResult.formula} ={' '}
-                    {state.dice.lastResult.total}
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-400">
-                    {state.dice.lastResult.details.join(' | ')}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-slate-400">
-              💾 Персонаж: {targetCharacter ? targetCharacter.name : '0'}
-            </span>
 
             <button
-              className="btn disabled:opacity-50"
-              disabled={!canApply}
-              title="Горячая клавиша: D"
-              onClick={() => state.applyLastRollToCharacter('damage')}
+              className="btn btn-danger"
+              onClick={() =>
+                state.setDice({ formula: '', lastResult: null, mode: 'single' })
+              }
             >
-              ⚔️ Урон D
-            </button>
-
-            <button
-              className="btn disabled:opacity-50"
-              disabled={!canApply}
-              title="Горячая клавиша: H"
-              onClick={() => state.applyLastRollToCharacter('healing')}
-            >
-              💚 Лечение H
-            </button>
-
-            <button
-              className="btn disabled:opacity-50"
-              disabled={!canApply}
-              title="Горячая клавиша: T"
-              onClick={() => state.applyLastRollToCharacter('temp')}
-            >
-              🛡️ Временные HP T
+              ✕ Сбросить ?
             </button>
           </div>
 
@@ -511,6 +407,112 @@ export default function App() {
               </div>
             </div>
           </details>
+
+          <div className="grid gap-2 md:grid-cols-[2fr_auto]">
+            <input
+              className="input"
+              value={state.dice.formula}
+              onChange={(event) =>
+                state.setDice({ formula: event.target.value })
+              }
+              placeholder="Например: 2d6+1d4+3"
+            />
+
+            <button
+              className="btn btn-primary"
+              onClick={() => state.rollFormula()}
+            >
+              🎲 Бросить
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-slate-400">Быстрые броски:</span>
+
+            {state.quickRolls.length === 0 && (
+              <span className="text-sm text-slate-500">нет</span>
+            )}
+
+            {state.quickRolls.map((quickRoll) => (
+              <div
+                key={quickRoll.id}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
+              >
+                <button onClick={() => state.rollFormula(quickRoll.formula)}>
+                  {quickRoll.name}: {quickRoll.formula}
+                </button>
+
+                <button
+                  className="text-slate-400 hover:text-red-400"
+                  title="Удалить быстрый бросок"
+                  onClick={() => state.removeQuickRoll(quickRoll.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            <button
+              className="btn"
+              onClick={() => state.openModal('addQuickRoll')}
+            >
+              Добавить быстрый бросок
+            </button>
+          </div>
+
+          {state.dice.lastResult && (
+            <div className="card bg-slate-950">
+              {state.dice.lastResult.error ? (
+                <p className="text-red-400">
+                  Ошибка: {state.dice.lastResult.error}
+                </p>
+              ) : (
+                <>
+                  <p className="text-lg font-bold">
+                    {state.dice.lastResult.formula} ={' '}
+                    {state.dice.lastResult.total}
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {state.dice.lastResult.details.join(' | ')}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-slate-400">
+              💾Персонаж {targetCharacter ? targetCharacter.name : '0'}
+            </span>
+
+            <button
+              className="btn disabled:opacity-50"
+              disabled={!canApply}
+              title="Горячая клавиша: D"
+              onClick={() => state.applyLastRollToCharacter('damage')}
+            >
+              ⚔️ УронD
+            </button>
+
+            <button
+              className="btn disabled:opacity-50"
+              disabled={!canApply}
+              title="Горячая клавиша: H"
+              onClick={() => state.applyLastRollToCharacter('healing')}
+            >
+              💚 ЛечениеH
+            </button>
+
+            <button
+              className="btn disabled:opacity-50"
+              disabled={!canApply}
+              title="Горячая клавиша: T"
+              onClick={() => state.applyLastRollToCharacter('temp')}
+            >
+              🛡️ Временные HPT
+            </button>
+          </div>
         </section>
 
         <section className="card space-y-2">
