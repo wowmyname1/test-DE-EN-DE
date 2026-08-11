@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { useAppStore } from './store/useAppStore.js';
+import GlobalModals from './components/Modals.jsx';
 
 const diceButtons = [
   { label: '🔺 d4', token: 'd4' },
@@ -12,123 +12,17 @@ const diceButtons = [
 ];
 
 const modes = [
-  { label: '⚔️ Одиночный', value: 'single' },
-  { label: '💥 AoE', value: 'aoe' },
-  { label: '🎯 Разброс', value: 'spread' },
+  { label: '⚔️ Одиночный 1', value: 'single' },
+  { label: '💥 AoE 2', value: 'aoe' },
+  { label: '🎯 Разброс 3', value: 'spread' },
 ];
-
-const emptyForm = {
-  name: '',
-  type: '',
-  level: '',
-  hpMax: '',
-  hpCurrent: '',
-  ac: '',
-  initiative: '',
-  color: '#64748b',
-};
-
-function InlineAddCharacter({ side, buttonLabel }) {
-  const addCharacter = useAppStore((state) => state.addCharacter);
-
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-
-  const setField = (field) => (event) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
-  };
-
-  const submit = (event) => {
-    event.preventDefault();
-    addCharacter(side, form);
-    setForm(emptyForm);
-    setOpen(false);
-  };
-
-  if (!open) {
-    return (
-      <button className="btn btn-primary" onClick={() => setOpen(true)}>
-        {buttonLabel}
-      </button>
-    );
-  }
-
-  return (
-    <form onSubmit={submit} className="space-y-3 rounded-lg border border-slate-700 bg-slate-950 p-3">
-      <div className="grid gap-2 md:grid-cols-4">
-        <label className="text-sm">
-          <span className="label">Имя</span>
-          <input className="input" value={form.name} onChange={setField('name')} required />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">Класс / Тип</span>
-          <input className="input" value={form.type} onChange={setField('type')} />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">Уровень / CR</span>
-          <input className="input" value={form.level} onChange={setField('level')} />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">HP Макс</span>
-          <input className="input" type="number" value={form.hpMax} onChange={setField('hpMax')} />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">HP Текущие</span>
-          <input className="input" type="number" value={form.hpCurrent} onChange={setField('hpCurrent')} />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">AC</span>
-          <input className="input" type="number" value={form.ac} onChange={setField('ac')} />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">Инициатива</span>
-          <input className="input" type="number" value={form.initiative} onChange={setField('initiative')} />
-        </label>
-
-        <label className="text-sm">
-          <span className="label">Цвет</span>
-          <input
-            className="h-10 w-full rounded-lg border border-slate-700 bg-slate-950 p-1"
-            type="color"
-            value={form.color}
-            onChange={setField('color')}
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className="btn btn-primary">
-          Сохранить
-        </button>
-
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setForm(emptyForm);
-            setOpen(false);
-          }}
-        >
-          Отмена
-        </button>
-      </div>
-    </form>
-  );
-}
 
 function CharacterCard({ character }) {
   const selectedCharacterId = useAppStore((state) => state.selectedCharacterId);
   const selectCharacter = useAppStore((state) => state.selectCharacter);
   const removeCharacter = useAppStore((state) => state.removeCharacter);
+  const removeStatusFromCharacter = useAppStore((state) => state.removeStatusFromCharacter);
+  const openModal = useAppStore((state) => state.openModal);
   const currentId = useAppStore((state) => state.initiativeOrder[state.turnIndex ?? -1]);
 
   const isCurrent = currentId === character.id;
@@ -158,15 +52,28 @@ function CharacterCard({ character }) {
           </div>
         </div>
 
-        <button
-          className="btn btn-danger px-2 py-1"
-          onClick={(event) => {
-            event.stopPropagation();
-            removeCharacter(character.side, character.id);
-          }}
-        >
-          ✕
-        </button>
+        <div className="flex gap-1">
+          <button
+            className="btn px-2 py-1"
+            title="Добавить статус"
+            onClick={(event) => {
+              event.stopPropagation();
+              openModal('addStatus', { targetId: character.id });
+            }}
+          >
+            + Статус
+          </button>
+
+          <button
+            className="btn btn-danger px-2 py-1"
+            onClick={(event) => {
+              event.stopPropagation();
+              removeCharacter(character.side, character.id);
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-slate-300 md:grid-cols-4">
@@ -177,7 +84,26 @@ function CharacterCard({ character }) {
       </div>
 
       {(character.statuses || []).length > 0 && (
-        <div className="mt-2 text-xs text-slate-400">Статусы: {character.statuses.length}</div>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {(character.statuses || []).map((status) => (
+            <span
+              key={status.id}
+              className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs"
+            >
+              {status.icon} {status.name}
+              {status.duration ? ` • ${status.duration}` : ''}
+
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeStatusFromCharacter(character.id, status.id);
+                }}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
       )}
     </article>
   );
@@ -237,11 +163,35 @@ export default function App() {
           </div>
         </header>
 
+        <section className="card flex flex-wrap gap-2">
+          <button className="btn" onClick={() => state.openModal('addStatus')}>
+            Добавить статус
+          </button>
+
+          <button className="btn" onClick={() => state.openModal('addQuickRoll')}>
+            Добавить быстрый бросок
+          </button>
+
+          <button className="btn" onClick={() => state.openModal('statusCatalog')}>
+            ✨ Каталог статусов
+          </button>
+
+          <button className="btn" onClick={() => state.openModal('spellCatalog')}>
+            🔮 Каталог заклинаний
+          </button>
+        </section>
+
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">🛡️ Игроки {state.players.length}</h2>
-              <InlineAddCharacter side="player" buttonLabel="+ Добавить игрока" />
+
+              <button
+                className="btn btn-primary"
+                onClick={() => state.openModal('addCharacter', { side: 'player' })}
+              >
+                + Добавить игрока
+              </button>
             </div>
 
             <div className="space-y-2">
@@ -254,7 +204,13 @@ export default function App() {
           <section className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">👹 NPC / Монстры {state.npcs.length}</h2>
-              <InlineAddCharacter side="npc" buttonLabel="+ Добавить NPC" />
+
+              <button
+                className="btn btn-primary"
+                onClick={() => state.openModal('addCharacter', { side: 'npc' })}
+              >
+                + Добавить NPC
+              </button>
             </div>
 
             <div className="space-y-2">
@@ -267,6 +223,8 @@ export default function App() {
 
         <section className="card space-y-3">
           <h2 className="text-lg font-semibold">🎲 Кубики</h2>
+
+          <p className="text-sm text-slate-400">Бросьте кубик</p>
 
           <div className="flex flex-wrap gap-2">
             {diceButtons.map((button) => (
@@ -289,9 +247,9 @@ export default function App() {
 
             <button
               className="btn btn-danger"
-              onClick={() => state.setDice({ formula: '', lastResult: null })}
+              onClick={() => state.setDice({ formula: '', lastResult: null, mode: 'single' })}
             >
-              ✕ Очистить
+              ✕ Сбросить ?
             </button>
           </div>
 
@@ -320,8 +278,10 @@ export default function App() {
             ))}
           </div>
 
-          {state.quickRolls.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-slate-400">Быстрые броски:</span>
+
               {state.quickRolls.map((quickRoll) => (
                 <button
                   key={quickRoll.id}
@@ -331,8 +291,12 @@ export default function App() {
                   {quickRoll.name}: {quickRoll.formula}
                 </button>
               ))}
+
+              <button className="btn" onClick={() => state.openModal('addQuickRoll')}>
+                + Добавить быстрый бросок
+              </button>
             </div>
-          )}
+          </div>
 
           {state.dice.lastResult && (
             <div className="card bg-slate-950">
@@ -354,7 +318,7 @@ export default function App() {
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-slate-400">
-              Персонаж: {targetCharacter ? targetCharacter.name : 'не выбран'}
+              💾 Персонаж: {targetCharacter ? targetCharacter.name : '0'}
             </span>
 
             <button
@@ -362,7 +326,7 @@ export default function App() {
               disabled={!canApply}
               onClick={() => state.applyLastRollToCharacter('damage')}
             >
-              ⚔️ Урон
+              ⚔️ Урон D
             </button>
 
             <button
@@ -370,7 +334,7 @@ export default function App() {
               disabled={!canApply}
               onClick={() => state.applyLastRollToCharacter('healing')}
             >
-              💚 Лечение
+              💚 Лечение H
             </button>
 
             <button
@@ -378,7 +342,7 @@ export default function App() {
               disabled={!canApply}
               onClick={() => state.applyLastRollToCharacter('temp')}
             >
-              🛡️ Временные HP
+              🛡️ Временные HP T
             </button>
           </div>
 
@@ -386,12 +350,43 @@ export default function App() {
             <summary className="cursor-pointer font-medium">📜 Синтаксис бросков</summary>
 
             <div className="mt-2 grid gap-2 text-sm text-slate-300 md:grid-cols-2">
-              <div>2d6 — 2 кубика d6</div>
-              <div>1d20+5 — d20 с модификатором</div>
-              <div>4d6kh3 — бросить 4d6, лучшие 3</div>
-              <div>2d20kl1 — бросить 2d20, худший</div>
-              <div>2d6+1d4+3 — смесь костей</div>
-              <div>8 — просто число</div>
+              <div>
+                <code>2d6</code> — 2 кубика d6
+              </div>
+
+              <div>
+                <code>1d20+5</code> — d20 с модификатором
+              </div>
+
+              <div>
+                <code>4d6kh3</code> — бросить 4d6, лучшие 3
+              </div>
+
+              <div>
+                <code>2d20kl1</code> — бросить 2d20, худший
+              </div>
+
+              <div>
+                <code>2d6+1d4+3</code> — смесь костей
+              </div>
+
+              <div>
+                <code>8</code> — просто число
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-3">
+              <div>
+                Операторы: <code>+</code> сложение, <code>-</code> вычитание
+              </div>
+
+              <div>
+                Keep: <code>kh</code> — лучшие, <code>kl</code> — худшие
+              </div>
+
+              <div>
+                Порядок: <code>NdM[kh|kl]K</code>
+              </div>
             </div>
           </details>
         </section>
@@ -410,6 +405,8 @@ export default function App() {
             ))}
           </div>
         </section>
+
+        <GlobalModals />
       </div>
     </main>
   );

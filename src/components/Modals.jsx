@@ -1,0 +1,849 @@
+import { useState } from 'react';
+import { useAppStore } from '../store/useAppStore.js';
+import { uid } from '../utils/id.js';
+
+function Modal({ title, onClose, children, wide = false }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className={`card max-h-[90vh] w-full overflow-auto ${
+          wide ? 'max-w-3xl' : 'max-w-xl'
+        }`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-lg font-semibold">{title}</h3>
+
+          <button className="btn px-2 py-1" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AddCharacterModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const addCharacter = useAppStore((state) => state.addCharacter);
+  const side = useAppStore((state) => state.modalPayload.side || 'player');
+
+  const [form, setForm] = useState({
+    name: '',
+    type: '',
+    level: '',
+    hpMax: '',
+    hpCurrent: '',
+    ac: '',
+    initiative: '',
+    color: side === 'player' ? '#22c55e' : '#ef4444',
+  });
+
+  const setField = (field) => (event) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+    addCharacter(side, form);
+    closeModal();
+  };
+
+  return (
+    <Modal title="Добавить персонажа" onClose={closeModal} wide>
+      <form onSubmit={submit} className="space-y-3">
+        <div className="grid gap-2 md:grid-cols-4">
+          <label className="text-sm">
+            <span className="label">Имя</span>
+            <input className="input" value={form.name} onChange={setField('name')} required />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Класс / Тип</span>
+            <input className="input" value={form.type} onChange={setField('type')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Уровень / CR</span>
+            <input className="input" value={form.level} onChange={setField('level')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">HP Макс</span>
+            <input className="input" type="number" value={form.hpMax} onChange={setField('hpMax')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">HP Текущие</span>
+            <input
+              className="input"
+              type="number"
+              value={form.hpCurrent}
+              onChange={setField('hpCurrent')}
+            />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">AC</span>
+            <input className="input" type="number" value={form.ac} onChange={setField('ac')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Инициатива</span>
+            <input
+              className="input"
+              type="number"
+              value={form.initiative}
+              onChange={setField('initiative')}
+            />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Цвет</span>
+            <input
+              className="h-10 w-full rounded-lg border border-slate-700 bg-slate-950 p-1"
+              type="color"
+              value={form.color}
+              onChange={setField('color')}
+            />
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn" onClick={closeModal}>
+            Отмена
+          </button>
+
+          <button type="submit" className="btn btn-primary">
+            Сохранить
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AddStatusModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const statusTemplates = useAppStore((state) => state.statusTemplates);
+  const addStatusToCharacter = useAppStore((state) => state.addStatusToCharacter);
+
+  const payloadTargetId = useAppStore((state) => state.modalPayload.targetId || null);
+  const initialTemplateId = useAppStore((state) => state.modalPayload.templateId || '');
+
+  const selectedCharacterId = useAppStore((state) => state.selectedCharacterId);
+  const currentId = useAppStore((state) => state.initiativeOrder[state.turnIndex ?? -1]);
+
+  const players = useAppStore((state) => state.players);
+  const npcs = useAppStore((state) => state.npcs);
+
+  const targetId = payloadTargetId || selectedCharacterId || currentId || null;
+  const allCharacters = [...players, ...npcs];
+  const targetCharacter = allCharacters.find((character) => character.id === targetId);
+
+  const [tab, setTab] = useState('indefinite');
+  const [templateId, setTemplateId] = useState(initialTemplateId);
+  const [customName, setCustomName] = useState('');
+  const [customIcon, setCustomIcon] = useState('✨');
+  const [duration, setDuration] = useState(1);
+
+  const useCustom = customName.trim().length > 0;
+  const canAdd = Boolean(targetId && (useCustom || templateId));
+
+  const submit = (event) => {
+    event.preventDefault();
+
+    if (!canAdd) {
+      return;
+    }
+
+    const durationValue = tab === 'temporary' ? Number(duration || 1) : null;
+
+    if (useCustom) {
+      addStatusToCharacter(targetId, {
+        name: customName.trim(),
+        icon: customIcon.trim() || '✨',
+        color: '#a855f7',
+        description: '',
+        duration: durationValue,
+      });
+
+      closeModal();
+      return;
+    }
+
+    const template = statusTemplates.find((item) => item.id === templateId);
+
+    if (!template) {
+      return;
+    }
+
+    addStatusToCharacter(targetId, {
+      name: template.name,
+      icon: template.icon || '✨',
+      color: template.color || '#a855f7',
+      description: template.description || '',
+      duration: durationValue,
+    });
+
+    closeModal();
+  };
+
+  return (
+    <Modal title="Добавить статус" onClose={closeModal}>
+      <form onSubmit={submit} className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`btn ${tab === 'indefinite' ? 'btn-primary' : ''}`}
+            onClick={() => setTab('indefinite')}
+          >
+            ⏳ Бессрочные
+          </button>
+
+          <button
+            type="button"
+            className={`btn ${tab === 'temporary' ? 'btn-primary' : ''}`}
+            onClick={() => setTab('temporary')}
+          >
+            🔢 Временные
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-300">
+          Цель: {targetCharacter ? targetCharacter.name : 'не выбрана'}
+        </p>
+
+        <label className="block text-sm">
+          <span className="label">Выберите статус</span>
+
+          <select className="input" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+            <option value="">Выберите статус</option>
+
+            {statusTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.icon} {template.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="text-sm font-medium text-slate-300">Или свой статус</div>
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <label className="text-sm">
+            <span className="label">Название</span>
+            <input
+              className="input"
+              value={customName}
+              onChange={(event) => setCustomName(event.target.value)}
+              placeholder="Например: Благословение"
+            />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Иконка (эмодзи)</span>
+            <input
+              className="input"
+              value={customIcon}
+              onChange={(event) => setCustomIcon(event.target.value)}
+              placeholder="✨"
+            />
+          </label>
+
+          {tab === 'temporary' && (
+            <label className="text-sm">
+              <span className="label">Длительность (раунды)</span>
+              <input
+                className="input"
+                type="number"
+                min="1"
+                value={duration}
+                onChange={(event) => setDuration(event.target.value)}
+              />
+            </label>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn" onClick={closeModal}>
+            Отмена
+          </button>
+
+          <button type="submit" className="btn btn-primary disabled:opacity-50" disabled={!canAdd}>
+            Добавить
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AddQuickRollModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const addQuickRoll = useAppStore((state) => state.addQuickRoll);
+
+  const [name, setName] = useState('');
+  const [formula, setFormula] = useState('');
+
+  const canAdd = Boolean(name.trim() && formula.trim());
+
+  const submit = (event) => {
+    event.preventDefault();
+
+    if (!canAdd) {
+      return;
+    }
+
+    addQuickRoll({
+      name: name.trim(),
+      formula: formula.trim(),
+    });
+
+    closeModal();
+  };
+
+  return (
+    <Modal title="Добавить быстрый бросок" onClose={closeModal}>
+      <form onSubmit={submit} className="space-y-3">
+        <label className="block text-sm">
+          <span className="label">Название</span>
+          <input
+            className="input"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Например: Атака"
+          />
+        </label>
+
+        <label className="block text-sm">
+          <span className="label">Формула</span>
+          <input
+            className="input"
+            value={formula}
+            onChange={(event) => setFormula(event.target.value)}
+            placeholder="Например: 1d20+5"
+          />
+        </label>
+
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn" onClick={closeModal}>
+            Отмена
+          </button>
+
+          <button type="submit" className="btn btn-primary disabled:opacity-50" disabled={!canAdd}>
+            Добавить
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function StatusCatalogModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const openModal = useAppStore((state) => state.openModal);
+  const statusTemplates = useAppStore((state) => state.statusTemplates);
+
+  return (
+    <Modal title="✨ Каталог статусов" onClose={closeModal} wide>
+      <div className="space-y-2">
+        {statusTemplates.length === 0 && <p className="text-slate-400">Статусов пока нет.</p>}
+
+        {statusTemplates.map((template) => (
+          <div key={template.id} className="card flex items-center justify-between gap-2">
+            <div>
+              <div className="font-medium">
+                {template.icon} {template.name}
+              </div>
+
+              <div className="text-xs text-slate-400">
+                {template.description || 'Без описания'}
+              </div>
+
+              {template.duration ? (
+                <div className="text-xs text-slate-500">Длительность: {template.duration}</div>
+              ) : null}
+            </div>
+
+            <button
+              className="btn"
+              onClick={() => openModal('addStatus', { templateId: template.id })}
+            >
+              Добавить
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button className="btn btn-primary" onClick={() => openModal('statusConstructor')}>
+          ➕ Создать
+        </button>
+
+        <button className="btn" onClick={closeModal}>
+          Закрыть
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function SpellCatalogModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const openModal = useAppStore((state) => state.openModal);
+  const spells = useAppStore((state) => state.spells);
+
+  const [filter, setFilter] = useState('all');
+
+  const levels = [
+    { value: 'all', label: 'Все уровни' },
+    { value: '0', label: 'Заговоры' },
+    { value: '1', label: 'Уровень 1' },
+    { value: '2', label: 'Уровень 2' },
+    { value: '3', label: 'Уровень 3' },
+    { value: '4', label: 'Уровень 4' },
+    { value: '5', label: 'Уровень 5' },
+  ];
+
+  const filteredSpells = spells.filter((spell) => {
+    if (filter === 'all') {
+      return true;
+    }
+
+    return String(spell.level) === filter;
+  });
+
+  return (
+    <Modal title="🔮 Каталог заклинаний" onClose={closeModal} wide>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {levels.map((level) => (
+          <button
+            key={level.value}
+            type="button"
+            className={`btn ${filter === level.value ? 'btn-primary' : ''}`}
+            onClick={() => setFilter(level.value)}
+          >
+            {level.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {filteredSpells.length === 0 && <p className="text-slate-400">Заклинаний пока нет.</p>}
+
+        {filteredSpells.map((spell) => (
+          <div key={spell.id} className="card">
+            <div className="font-medium">
+              {spell.icon} {spell.name}
+            </div>
+
+            <div className="text-xs text-slate-400">
+              {spell.level === 0 ? 'Заговор' : `Уровень ${spell.level}`} • {spell.school}
+            </div>
+
+            {spell.description && (
+              <div className="mt-1 text-sm text-slate-300">{spell.description}</div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <button className="btn btn-primary" onClick={() => openModal('spellConstructor')}>
+          ➕ Создать
+        </button>
+
+        <button className="btn" onClick={closeModal}>
+          Закрыть
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function StatusConstructorModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const openModal = useAppStore((state) => state.openModal);
+  const addStatusTemplate = useAppStore((state) => state.addStatusTemplate);
+
+  const [tab, setTab] = useState('basic');
+
+  const [form, setForm] = useState({
+    name: '',
+    icon: '✨',
+    color: '#a855f7',
+    description: '',
+  });
+
+  const [nodes, setNodes] = useState([]);
+
+  const setField = (field) => (event) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
+
+  const addTrigger = () => {
+    setNodes((prev) => [
+      ...prev,
+      {
+        id: uid(),
+        type: 'trigger',
+        text: '',
+      },
+    ]);
+  };
+
+  const updateNode = (id, text) => {
+    setNodes((prev) =>
+      prev.map((node) => {
+        if (node.id !== id) {
+          return node;
+        }
+
+        return {
+          ...node,
+          text,
+        };
+      })
+    );
+  };
+
+  const removeNode = (id) => {
+    setNodes((prev) => prev.filter((node) => node.id !== id));
+  };
+
+  const save = () => {
+    if (!form.name.trim()) {
+      return;
+    }
+
+    addStatusTemplate({
+      name: form.name.trim(),
+      icon: form.icon.trim() || '✨',
+      color: form.color,
+      description: form.description.trim(),
+      duration: null,
+      logic: {
+        nodes,
+      },
+    });
+
+    openModal('statusCatalog');
+  };
+
+  return (
+    <Modal title="✨ Конструктор статуса" onClose={closeModal} wide>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`btn ${tab === 'basic' ? 'btn-primary' : ''}`}
+          onClick={() => setTab('basic')}
+        >
+          📋 Основное
+        </button>
+
+        <button
+          type="button"
+          className={`btn ${tab === 'logic' ? 'btn-primary' : ''}`}
+          onClick={() => setTab('logic')}
+        >
+          ⚙️ Логика (узлы)
+        </button>
+      </div>
+
+      {tab === 'basic' && (
+        <div className="grid gap-2 md:grid-cols-2">
+          <label className="text-sm">
+            <span className="label">Название</span>
+            <input className="input" value={form.name} onChange={setField('name')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Иконка</span>
+            <input className="input" value={form.icon} onChange={setField('icon')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Цвет</span>
+            <input
+              className="h-10 w-full rounded-lg border border-slate-700 bg-slate-950 p-1"
+              type="color"
+              value={form.color}
+              onChange={setField('color')}
+            />
+          </label>
+
+          <label className="block text-sm md:col-span-2">
+            <span className="label">Описание</span>
+            <textarea className="input" rows={3} value={form.description} onChange={setField('description')} />
+          </label>
+        </div>
+      )}
+
+      {tab === 'logic' && (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-400">
+            Создайте триггеры (когда срабатывает), условия (проверки) и действия. Узлы образуют
+            дерево — каждый дочерний срабатывает только если родитель прошёл.
+          </p>
+
+          <button type="button" className="btn" onClick={addTrigger}>
+            ⚡ + Триггер
+          </button>
+
+          <div className="space-y-2">
+            {nodes.map((node) => (
+              <div key={node.id} className="flex gap-2">
+                <input
+                  className="input"
+                  value={node.text}
+                  placeholder="Описание триггера"
+                  onChange={(event) => updateNode(node.id, event.target.value)}
+                />
+
+                <button type="button" className="btn btn-danger px-3" onClick={() => removeNode(node.id)}>
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button type="button" className="btn" onClick={closeModal}>
+          Отмена
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-primary disabled:opacity-50"
+          disabled={!form.name.trim()}
+          onClick={save}
+        >
+          💾 Сохранить
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function SpellConstructorModal() {
+  const closeModal = useAppStore((state) => state.closeModal);
+  const openModal = useAppStore((state) => state.openModal);
+  const addSpell = useAppStore((state) => state.addSpell);
+
+  const [tab, setTab] = useState('basic');
+  const [targetMode, setTargetMode] = useState('single');
+
+  const schools = [
+    'Воплощение',
+    'Проявление',
+    'Очарование',
+    'Ограждение',
+    'Преобразование',
+    'Прорицание',
+    'Некромантия',
+    'Вызов',
+  ];
+
+  const levels = [
+    { value: '0', label: 'Заговор' },
+    { value: '1', label: 'Уровень 1' },
+    { value: '2', label: 'Уровень 2' },
+    { value: '3', label: 'Уровень 3' },
+    { value: '4', label: 'Уровень 4' },
+    { value: '5', label: 'Уровень 5' },
+  ];
+
+  const targetModes = [
+    { value: 'single', label: '🎯 Одиночная' },
+    { value: 'aoe', label: '💥 AoE' },
+    { value: 'spread', label: '🎲 Разброс' },
+  ];
+
+  const [form, setForm] = useState({
+    name: '',
+    level: '0',
+    icon: '✨',
+    school: schools[0],
+    castTime: '',
+    range: '',
+    duration: '',
+    description: '',
+  });
+
+  const setField = (field) => (event) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
+
+  const save = () => {
+    if (!form.name.trim()) {
+      return;
+    }
+
+    addSpell({
+      name: form.name.trim(),
+      level: Number(form.level),
+      icon: form.icon.trim() || '✨',
+      school: form.school,
+      castTime: form.castTime.trim(),
+      range: form.range.trim(),
+      duration: form.duration.trim(),
+      description: form.description.trim(),
+      logic: {
+        targetMode,
+      },
+    });
+
+    openModal('spellCatalog');
+  };
+
+  return (
+    <Modal title="🔮 Конструктор заклинания" onClose={closeModal} wide>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`btn ${tab === 'basic' ? 'btn-primary' : ''}`}
+          onClick={() => setTab('basic')}
+        >
+          📋 Основное
+        </button>
+
+        <button
+          type="button"
+          className={`btn ${tab === 'logic' ? 'btn-primary' : ''}`}
+          onClick={() => setTab('logic')}
+        >
+          🎯 Логика
+        </button>
+      </div>
+
+      {tab === 'basic' && (
+        <div className="grid gap-2 md:grid-cols-2">
+          <label className="text-sm">
+            <span className="label">Название</span>
+            <input className="input" value={form.name} onChange={setField('name')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Уровень</span>
+
+            <select className="input" value={form.level} onChange={setField('level')}>
+              {levels.map((level) => (
+                <option key={level.value} value={level.value}>
+                  {level.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Иконка</span>
+            <input className="input" value={form.icon} onChange={setField('icon')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Школа</span>
+
+            <select className="input" value={form.school} onChange={setField('school')}>
+              {schools.map((school) => (
+                <option key={school} value={school}>
+                  {school}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Время накладывания</span>
+            <input className="input" value={form.castTime} onChange={setField('castTime')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Дистанция</span>
+            <input className="input" value={form.range} onChange={setField('range')} />
+          </label>
+
+          <label className="text-sm">
+            <span className="label">Длительность</span>
+            <input className="input" value={form.duration} onChange={setField('duration')} />
+          </label>
+
+          <label className="block text-sm md:col-span-2">
+            <span className="label">Описание</span>
+            <textarea className="input" rows={3} value={form.description} onChange={setField('description')} />
+          </label>
+        </div>
+      )}
+
+      {tab === 'logic' && (
+        <div className="space-y-3">
+          <div className="text-sm font-medium text-slate-300">Режим цели</div>
+
+          <div className="flex flex-wrap gap-2">
+            {targetModes.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                className={`btn ${targetMode === mode.value ? 'btn-primary' : ''}`}
+                onClick={() => setTargetMode(mode.value)}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button type="button" className="btn" onClick={closeModal}>
+          Отмена
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-primary disabled:opacity-50"
+          disabled={!form.name.trim()}
+          onClick={save}
+        >
+          💾 Сохранить
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+export default function GlobalModals() {
+  const activeModal = useAppStore((state) => state.activeModal);
+
+  if (!activeModal) {
+    return null;
+  }
+
+  return (
+    <>
+      {activeModal === 'addCharacter' && <AddCharacterModal />}
+      {activeModal === 'addStatus' && <AddStatusModal />}
+      {activeModal === 'addQuickRoll' && <AddQuickRollModal />}
+      {activeModal === 'statusCatalog' && <StatusCatalogModal />}
+      {activeModal === 'spellCatalog' && <SpellCatalogModal />}
+      {activeModal === 'statusConstructor' && <StatusConstructorModal />}
+      {activeModal === 'spellConstructor' && <SpellConstructorModal />}
+    </>
+  );
+}
