@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './store/extensions.js';
+import './store/statusEngine.js';
 import App from './App.jsx';
 import SpellCaster from './components/SpellCaster.jsx';
 
