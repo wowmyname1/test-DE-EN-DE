@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore.js';
 import GlobalModals from './components/Modals.jsx';
+import InitiativePanel from './components/InitiativePanel.jsx';
 
 const diceButtons = [
   { label: '🔺 d4', token: 'd4' },
@@ -21,9 +23,13 @@ function CharacterCard({ character }) {
   const selectedCharacterId = useAppStore((state) => state.selectedCharacterId);
   const selectCharacter = useAppStore((state) => state.selectCharacter);
   const removeCharacter = useAppStore((state) => state.removeCharacter);
-  const removeStatusFromCharacter = useAppStore((state) => state.removeStatusFromCharacter);
+  const removeStatusFromCharacter = useAppStore(
+    (state) => state.removeStatusFromCharacter
+  );
   const openModal = useAppStore((state) => state.openModal);
-  const currentId = useAppStore((state) => state.initiativeOrder[state.turnIndex ?? -1]);
+  const currentId = useAppStore(
+    (state) => state.initiativeOrder[state.turnIndex ?? -1]
+  );
 
   const isCurrent = currentId === character.id;
   const isSelected = selectedCharacterId === character.id;
@@ -66,6 +72,7 @@ function CharacterCard({ character }) {
 
           <button
             className="btn btn-danger px-2 py-1"
+            title="Удалить персонажа"
             onClick={(event) => {
               event.stopPropagation();
               removeCharacter(character.side, character.id);
@@ -94,6 +101,7 @@ function CharacterCard({ character }) {
               {status.duration ? ` • ${status.duration}` : ''}
 
               <button
+                title="Удалить статус"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeStatusFromCharacter(character.id, status.id);
@@ -121,6 +129,62 @@ export default function App() {
 
   const canApply = Boolean(targetCharacter && state.dice.lastResult?.total > 0);
 
+  useEffect(() => {
+    const handler = (event) => {
+      const store = useAppStore.getState();
+
+      if (event.code === 'Escape' && store.activeModal) {
+        store.closeModal();
+        return;
+      }
+
+      const target = event.target;
+      const isEditable =
+        target instanceof HTMLElement &&
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+
+      if (
+        isEditable ||
+        store.activeModal ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      if (event.code === 'Digit1' || event.code === 'Numpad1') {
+        store.setDice({ mode: 'single' });
+      }
+
+      if (event.code === 'Digit2' || event.code === 'Numpad2') {
+        store.setDice({ mode: 'aoe' });
+      }
+
+      if (event.code === 'Digit3' || event.code === 'Numpad3') {
+        store.setDice({ mode: 'spread' });
+      }
+
+      if (event.code === 'KeyD') {
+        store.applyLastRollToCharacter('damage');
+      }
+
+      if (event.code === 'KeyH') {
+        store.applyLastRollToCharacter('healing');
+      }
+
+      if (event.code === 'KeyT') {
+        store.applyLastRollToCharacter('temp');
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+
+    return () => {
+      window.removeEventListener('keydown', handler);
+    };
+  }, []);
+
   const centerCurrent = () => {
     if (!currentId) {
       return;
@@ -140,7 +204,8 @@ export default function App() {
             <h1 className="text-2xl font-bold">⚔️ D&D Encounter</h1>
 
             <p className="mt-1 text-sm text-slate-300">
-              Ход: {currentCharacter ? currentCharacter.name : '—'} • Раунд {state.round}
+              Ход: {currentCharacter ? currentCharacter.name : '—'} • Раунд{' '}
+              {state.round}
             </p>
           </div>
 
@@ -181,10 +246,14 @@ export default function App() {
           </button>
         </section>
 
+        <InitiativePanel />
+
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">🛡️ Игроки {state.players.length}</h2>
+              <h2 className="text-lg font-semibold">
+                🛡️ Игроки {state.players.length}
+              </h2>
 
               <button
                 className="btn btn-primary"
@@ -203,7 +272,9 @@ export default function App() {
 
           <section className="card space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">👹 NPC / Монстры {state.npcs.length}</h2>
+              <h2 className="text-lg font-semibold">
+                👹 NPC / Монстры {state.npcs.length}
+              </h2>
 
               <button
                 className="btn btn-primary"
@@ -247,7 +318,9 @@ export default function App() {
 
             <button
               className="btn btn-danger"
-              onClick={() => state.setDice({ formula: '', lastResult: null, mode: 'single' })}
+              onClick={() =>
+                state.setDice({ formula: '', lastResult: null, mode: 'single' })
+              }
             >
               ✕ Сбросить ?
             </button>
@@ -257,11 +330,16 @@ export default function App() {
             <input
               className="input"
               value={state.dice.formula}
-              onChange={(event) => state.setDice({ formula: event.target.value })}
+              onChange={(event) =>
+                state.setDice({ formula: event.target.value })
+              }
               placeholder="Например: 2d6+1d4+3"
             />
 
-            <button className="btn btn-primary" onClick={() => state.rollFormula()}>
+            <button
+              className="btn btn-primary"
+              onClick={() => state.rollFormula()}
+            >
               🎲 Бросить
             </button>
           </div>
@@ -270,7 +348,12 @@ export default function App() {
             {modes.map((mode) => (
               <button
                 key={mode.value}
-                className={`btn ${state.dice.mode === mode.value ? 'btn-primary' : ''}`}
+                className={`btn ${
+                  state.dice.mode === mode.value ? 'btn-primary' : ''
+                }`}
+                title={`Горячая клавиша: ${
+                  mode.value === 'single' ? '1' : mode.value === 'aoe' ? '2' : '3'
+                }`}
                 onClick={() => state.setDice({ mode: mode.value })}
               >
                 {mode.label}
@@ -282,17 +365,33 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-slate-400">Быстрые броски:</span>
 
+              {state.quickRolls.length === 0 && (
+                <span className="text-sm text-slate-500">нет</span>
+              )}
+
               {state.quickRolls.map((quickRoll) => (
-                <button
+                <div
                   key={quickRoll.id}
-                  className="btn"
-                  onClick={() => state.rollFormula(quickRoll.formula)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
                 >
-                  {quickRoll.name}: {quickRoll.formula}
-                </button>
+                  <button onClick={() => state.rollFormula(quickRoll.formula)}>
+                    {quickRoll.name}: {quickRoll.formula}
+                  </button>
+
+                  <button
+                    className="text-slate-400 hover:text-red-400"
+                    title="Удалить быстрый бросок"
+                    onClick={() => state.removeQuickRoll(quickRoll.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
 
-              <button className="btn" onClick={() => state.openModal('addQuickRoll')}>
+              <button
+                className="btn"
+                onClick={() => state.openModal('addQuickRoll')}
+              >
                 + Добавить быстрый бросок
               </button>
             </div>
@@ -301,11 +400,14 @@ export default function App() {
           {state.dice.lastResult && (
             <div className="card bg-slate-950">
               {state.dice.lastResult.error ? (
-                <p className="text-red-400">Ошибка: {state.dice.lastResult.error}</p>
+                <p className="text-red-400">
+                  Ошибка: {state.dice.lastResult.error}
+                </p>
               ) : (
                 <>
                   <p className="text-lg font-bold">
-                    {state.dice.lastResult.formula} = {state.dice.lastResult.total}
+                    {state.dice.lastResult.formula} ={' '}
+                    {state.dice.lastResult.total}
                   </p>
 
                   <p className="mt-1 text-sm text-slate-400">
@@ -324,6 +426,7 @@ export default function App() {
             <button
               className="btn disabled:opacity-50"
               disabled={!canApply}
+              title="Горячая клавиша: D"
               onClick={() => state.applyLastRollToCharacter('damage')}
             >
               ⚔️ Урон D
@@ -332,6 +435,7 @@ export default function App() {
             <button
               className="btn disabled:opacity-50"
               disabled={!canApply}
+              title="Горячая клавиша: H"
               onClick={() => state.applyLastRollToCharacter('healing')}
             >
               💚 Лечение H
@@ -340,6 +444,7 @@ export default function App() {
             <button
               className="btn disabled:opacity-50"
               disabled={!canApply}
+              title="Горячая клавиша: T"
               onClick={() => state.applyLastRollToCharacter('temp')}
             >
               🛡️ Временные HP T
@@ -347,7 +452,9 @@ export default function App() {
           </div>
 
           <details className="card bg-slate-950">
-            <summary className="cursor-pointer font-medium">📜 Синтаксис бросков</summary>
+            <summary className="cursor-pointer font-medium">
+              📜 Синтаксис бросков
+            </summary>
 
             <div className="mt-2 grid gap-2 text-sm text-slate-300 md:grid-cols-2">
               <div>
@@ -395,7 +502,9 @@ export default function App() {
           <h2 className="text-lg font-semibold">Логи</h2>
 
           <div className="max-h-48 space-y-1 overflow-auto text-sm">
-            {state.logs.length === 0 && <p className="text-slate-500">Пока пусто.</p>}
+            {state.logs.length === 0 && (
+              <p className="text-slate-500">Пока пусто.</p>
+            )}
 
             {state.logs.map((log) => (
               <div key={log.id} className="text-slate-300">
