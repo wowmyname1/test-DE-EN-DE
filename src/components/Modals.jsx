@@ -537,16 +537,91 @@ function StatusConstructorModal() {
     return 'Узел';
   };
 
+  const conditionValuePlaceholder = (type) => {
+    if (type === 'hpBelow' || type === 'hpAbove') {
+      return 'Например: 50% или 10';
+    }
+
+    if (type === 'hasStatus') {
+      return 'Например: Горение';
+    }
+
+    if (type === 'random') {
+      return 'Например: 30';
+    }
+
+    return '';
+  };
+
+  const nodeLabel = (node, index) => {
+    const parts = [`${index + 1}. ${nodeTypeLabel(node.type)}`];
+
+    if (node.text) {
+      parts.push(node.text);
+    }
+
+    if (node.formula) {
+      parts.push(node.formula);
+    }
+
+    return parts.join(' • ');
+  };
+
   const addNode = (type) => {
     setNodes((prev) => [
       ...prev,
       {
         id: uid(),
         type,
+        parentId: '',
         trigger: type === 'action' ? 'start' : '',
         effectType: type === 'action' ? 'damage' : '',
         formula: type === 'action' ? '1d6' : '',
+        conditionType: type === 'condition' ? 'hpBelow' : '',
+        conditionValue: type === 'condition' ? '50%' : '',
         text: '',
+      },
+    ]);
+  };
+
+  const addExampleTree = () => {
+    const triggerId = uid();
+    const conditionId = uid();
+    const actionId = uid();
+
+    setNodes([
+      {
+        id: triggerId,
+        type: 'trigger',
+        parentId: '',
+        trigger: 'end',
+        effectType: '',
+        formula: '',
+        conditionType: '',
+        conditionValue: '',
+        text: 'Конец хода',
+      },
+      {
+        id: conditionId,
+        type: 'condition',
+        parentId: triggerId,
+        trigger: '',
+        effectType: '',
+        formula: '',
+        conditionType: 'hpBelow',
+        conditionValue: '50%',
+        text: 'HP ниже 50%',
+      },
+      {
+        id: actionId,
+        type: 'action',
+        parentId: conditionId,
+        trigger: 'end',
+        effectType: 'damage',
+        formula: '1d6',
+        conditionType: '',
+        conditionValue: '',
+        text: 'Урон огнём',
       },
     ]);
   };
@@ -567,7 +642,20 @@ function StatusConstructorModal() {
   };
 
   const removeNode = (id) => {
-    setNodes((prev) => prev.filter((node) => node.id !== id));
+    setNodes((prev) =>
+      prev
+        .filter((node) => node.id !== id)
+        .map((node) => {
+          if (node.parentId === id) {
+            return {
+              ...node,
+              parentId: '',
+            };
+          }
+
+          return node;
+        })
+    );
   };
 
   const save = () => {
@@ -657,6 +745,10 @@ function StatusConstructorModal() {
             <button type="button" className="btn" onClick={() => addNode('action')}>
               🎯 + Действие
             </button>
+
+            <button type="button" className="btn" onClick={addExampleTree}>
+              🧪 Пример дерева
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -664,10 +756,12 @@ function StatusConstructorModal() {
               <p className="text-sm text-slate-500">Узлов пока нет.</p>
             )}
 
-            {nodes.map((node) => (
+            {nodes.map((node, index) => (
               <div key={node.id} className="card space-y-2 bg-slate-950">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium">{nodeTypeLabel(node.type)}</div>
+                  <div className="text-sm font-medium">
+                    {nodeTypeLabel(node.type)}
+                  </div>
 
                   <button
                     type="button"
@@ -678,55 +772,96 @@ function StatusConstructorModal() {
                   </button>
                 </div>
 
-                <label className="block text-sm">
-                  <span className="label">Тип узла</span>
+                <div className="grid gap-2 md:grid-cols-2">
+                  <label className="text-sm">
+                    <span className="label">Тип узла</span>
 
-                  <select
-                    className="input"
-                    value={node.type}
-                    onChange={(event) => {
-                      const type = event.target.value;
+                    <select
+                      className="input"
+                      value={node.type}
+                      onChange={(event) => {
+                        const type = event.target.value;
 
-                      updateNode(node.id, {
-                        type,
-                        trigger:
-                          type === 'action'
-                            ? node.trigger || 'start'
-                            : '',
-                        effectType:
-                          type === 'action'
-                            ? node.effectType || 'damage'
-                            : '',
-                        formula:
-                          type === 'action'
-                            ? node.formula || '1d6'
-                            : '',
-                      });
-                    }}
-                  >
-                    <option value="trigger">⚡ Триггер</option>
-                    <option value="condition">✅ Условие</option>
-                    <option value="action">🎯 Действие</option>
-                  </select>
-                </label>
+                        updateNode(node.id, {
+                          type,
+                          trigger:
+                            type === 'action'
+                              ? node.trigger || 'start'
+                              : type === 'trigger'
+                                ? node.trigger || ''
+                                : '',
+                          effectType:
+                            type === 'action'
+                              ? node.effectType || 'damage'
+                              : '',
+                          formula:
+                            type === 'action'
+                              ? node.formula || '1d6'
+                              : '',
+                          conditionType:
+                            type === 'condition'
+                              ? node.conditionType || 'hpBelow'
+                              : node.conditionType || '',
+                          conditionValue:
+                            type === 'condition'
+                              ? node.conditionValue || '50%'
+                              : node.conditionValue || '',
+                        });
+                      }}
+                    >
+                      <option value="trigger">⚡ Триггер</option>
+                      <option value="condition">✅ Условие</option>
+                      <option value="action">🎯 Действие</option>
+                    </select>
+                  </label>
+
+                  <label className="text-sm">
+                    <span className="label">Родитель</span>
+
+                    <select
+                      className="input"
+                      value={node.parentId || ''}
+                      onChange={(event) =>
+                        updateNode(node.id, { parentId: event.target.value })
+                      }
+                    >
+                      <option value="">Нет</option>
+
+                      {nodes.map((other, otherIndex) => {
+                        if (other.id === node.id) {
+                          return null;
+                        }
+
+                        return (
+                          <option key={other.id} value={other.id}>
+                            {nodeLabel(other, otherIndex)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                </div>
+
+                {(node.type === 'action' || node.type === 'trigger') && (
+                  <label className="block text-sm">
+                    <span className="label">Когда</span>
+
+                    <select
+                      className="input"
+                      value={node.trigger || ''}
+                      onChange={(event) =>
+                        updateNode(node.id, { trigger: event.target.value })
+                      }
+                    >
+                      {node.type === 'trigger' && <option value="">Любое</option>}
+                      <option value="start">Начало хода</option>
+                      <option value="end">Конец хода</option>
+                    </select>
+                  </label>
+                )}
 
                 {node.type === 'action' && (
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <label className="text-sm">
-                      <span className="label">Когда</span>
-
-                      <select
-                        className="input"
-                        value={node.trigger || 'start'}
-                        onChange={(event) =>
-                          updateNode(node.id, { trigger: event.target.value })
-                        }
-                      >
-                        <option value="start">Начало хода</option>
-                        <option value="end">Конец хода</option>
-                      </select>
-                    </label>
-
+                  <div className="grid gap-2 md:grid-cols-2">
                     <label className="text-sm">
                       <span className="label">Эффект</span>
 
@@ -754,6 +889,42 @@ function StatusConstructorModal() {
                         placeholder="Например: 1d6"
                       />
                     </label>
+                  </div>
+                )}
+
+                {(node.type === 'condition' || node.type === 'action') && (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <label className="text-sm">
+                      <span className="label">Тип условия</span>
+
+                      <select
+                        className="input"
+                        value={node.conditionType || ''}
+                        onChange={(event) =>
+                          updateNode(node.id, { conditionType: event.target.value })
+                        }
+                      >
+                        <option value="">Нет</option>
+                        <option value="hpBelow">HP ниже</option>
+                        <option value="hpAbove">HP выше</option>
+                        <option value="hasStatus">Есть статус</option>
+                        <option value="random">Случайный шанс</option>
+                      </select>
+                    </label>
+
+                    {node.conditionType ? (
+                      <label className="text-sm">
+                        <span className="label">Значение условия</span>
+                        <input
+                          className="input"
+                          value={node.conditionValue || ''}
+                          onChange={(event) =>
+                            updateNode(node.id, { conditionValue: event.target.value })
+                          }
+                          placeholder={conditionValuePlaceholder(node.conditionType)}
+                        />
+                      </label>
+                    ) : null}
                   </div>
                 )}
 
