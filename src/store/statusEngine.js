@@ -53,6 +53,45 @@ const normalizeEffect = (value) => {
   return '';
 };
 
+const normalizeConditionType = (value) => {
+  const text = String(value || '').toLowerCase();
+
+  if (
+    text.includes('hpbelow') ||
+    text.includes('hp below') ||
+    text.includes('ниже')
+  ) {
+    return 'hpBelow';
+  }
+
+  if (
+    text.includes('hpabove') ||
+    text.includes('hp above') ||
+    text.includes('выше')
+  ) {
+    return 'hpAbove';
+  }
+
+  if (
+    text.includes('hasstatus') ||
+    text.includes('has status') ||
+    text.includes('есть статус') ||
+    text.includes('статус')
+  ) {
+    return 'hasStatus';
+  }
+
+  if (
+    text.includes('random') ||
+    text.includes('шанс') ||
+    text.includes('случай')
+  ) {
+    return 'random';
+  }
+
+  return '';
+};
+
 const extractFormula = (value) => {
   const text = String(value || '').trim();
 
@@ -67,6 +106,71 @@ const extractFormula = (value) => {
   return match ? match[0] : '';
 };
 
+const parseThreshold = (value) => {
+  const text = String(value || '').trim().toLowerCase();
+  const percent = text.includes('%');
+  const numeric = toNumber(text.replace('%', ''), 0);
+
+  return {
+    percent,
+    value: numeric,
+  };
+};
+
+const parseConditionText = (text) => {
+  const raw = String(text || '').trim().replace(/:/g, ' ');
+
+  if (!raw) {
+    return null;
+  }
+
+  const conditionType = normalizeConditionType(raw);
+
+  if (!conditionType) {
+    return null;
+  }
+
+  let value = raw;
+
+  if (conditionType === 'hpBelow') {
+    value = raw.replace(/^(hp\s*below|ниже)\s*/i, '').trim();
+  }
+
+  if (conditionType === 'hpAbove') {
+    value = raw.replace(/^(hp\s*above|выше)\s*/i, '').trim();
+  }
+
+  if (conditionType === 'hasStatus') {
+    value = raw
+      .replace(/^(has\s*status|есть\s*статус|статус)\s*/i, '')
+      .trim();
+  }
+
+  if (conditionType === 'random') {
+    value = raw.replace(/^(random|шанс|случай)\s*/i, '').trim();
+  }
+
+  return {
+    type: conditionType,
+    value,
+  };
+};
+
+const parseConditionFromNode = (node) => {
+  if (!node) {
+    return null;
+  }
+
+  if (node.conditionType) {
+    return {
+      type: normalizeConditionType(node.conditionType),
+      value: node.conditionValue || '',
+    };
+  }
+
+  return parseConditionText(node.text || '');
+};
+
 const parseStatusNode = (node) => {
   if (!node) {
     return null;
@@ -77,11 +181,19 @@ const parseStatusNode = (node) => {
     const effectType = normalizeEffect(node.effectType);
     const formula = String(node.formula || '').trim();
 
+    const condition = node.conditionType
+      ? {
+          type: normalizeConditionType(node.conditionType),
+          value: node.conditionValue || '',
+        }
+      : parseConditionText(node.text || '');
+
     if (trigger && effectType && formula) {
       return {
         trigger,
         effectType,
         formula,
+        condition,
       };
     }
   }
@@ -97,30 +209,147 @@ const parseStatusNode = (node) => {
   if (parts.length >= 3) {
     const trigger = normalizeTrigger(parts[0]);
     const effectType = normalizeEffect(parts[1]);
-    const formula = parts.slice(2).join(':').trim();
+
+    const formulaRaw = parts.slice(2).join(':').trim();
+    const conditionChunks = formulaRaw.split(/\s+(?:if|если)\s+/i);
+
+    const formula = conditionChunks[0].trim();
+    const conditionText = conditionChunks.slice(1).join(' ').trim();
+
+    const condition = conditionText
+      ? parseConditionText(conditionText)
+      : parseConditionFromNode(node);
 
     if (trigger && effectType && formula) {
       return {
         trigger,
         effectType,
         formula,
+        condition,
       };
     }
   }
 
-  const trigger = normalizeTrigger(raw);
-  const effectType = normalizeEffect(raw);
-  const formula = extractFormula(raw);
+  const conditionChunks = raw.split(/\s+(?:if|если)\s+/i);
+  const baseText = conditionChunks[0].trim();
+  const conditionText = conditionChunks.slice(1).join(' ').trim();
+
+  const trigger = normalizeTrigger(baseText);
+  const effectType = normalizeEffect(baseText);
+  const formula = extractFormula(baseText);
+
+  const condition = conditionText
+    ? parseConditionText(conditionText)
+    : parseConditionFromNode(node);
 
   if (trigger && effectType && formula) {
     return {
       trigger,
       effectType,
       formula,
+      condition,
     };
   }
 
   return null;
+};
+
+const evaluateCondition = (character, condition) => {
+  if (!condition || !condition.type) {
+    return true;
+  }
+
+  const value = String(condition.value ?? '').trim();
+
+  if (condition.type === 'hpBelow') {
+    const threshold = parseThreshold(value);
+    const hpCurrent = toNumber(character.hpCurrent);
+    const hpMax = toNumber(character.hpMax);
+
+    const limit =
+      threshold.percent && hpMax > 0
+        ? (hpMax * threshold.value) / 100
+        : threshold.value;
+
+    return hpCurrent <= limit;
+  }
+
+  if (condition.type === 'hpAbove') {
+    const threshold = parseThreshold(value);
+    const hpCurrent = toNumber(character.hpCurrent);
+    const hpMax = toNumber(character.hpMax);
+
+    const limit =
+      threshold.percent && hpMax > 0
+        ? (hpMax * threshold.value) / 100
+        : threshold.value;
+
+    return hpCurrent >= limit;
+  }
+
+  if (condition.type === 'hasStatus') {
+    const needle = value.toLowerCase();
+
+    if (!needle) {
+      return false;
+    }
+
+    return (character.statuses || []).some((status) =>
+      String(status.name || '').toLowerCase().includes(needle)
+    );
+  }
+
+  if (condition.type === 'random') {
+    const chance = toNumber(value, 0);
+    return Math.random() * 100 < chance;
+  }
+
+  return true;
+};
+
+const evaluateNodeGate = (node, nodesById, character, phase, visited = new Set()) => {
+  if (!node) {
+    return true;
+  }
+
+  if (visited.has(node.id)) {
+    return false;
+  }
+
+  visited.add(node.id);
+
+  if (node.type === 'trigger') {
+    const trigger = normalizeTrigger(node.trigger || node.text || '');
+
+    if (trigger && trigger !== phase) {
+      return false;
+    }
+  }
+
+  const condition = parseConditionFromNode(node);
+
+  if (condition && !evaluateCondition(character, condition)) {
+    return false;
+  }
+
+  if (node.parentId && nodesById[node.parentId]) {
+    return evaluateNodeGate(
+      nodesById[node.parentId],
+      nodesById,
+      character,
+      phase,
+      visited
+    );
+  }
+
+  return true;
+};
+
+const getCharacterById = (characterId) => {
+  const state = useAppStore.getState();
+  const allCharacters = [...state.players, ...state.npcs];
+
+  return allCharacters.find((character) => character.id === characterId);
 };
 
 const applyEffectToCharacter = (character, effectType, amount) => {
@@ -172,21 +401,30 @@ const applyEffectToCharacter = (character, effectType, amount) => {
 };
 
 const processCharacterStatuses = (characterId, phase) => {
-  const state = useAppStore.getState();
+  const rootCharacter = getCharacterById(characterId);
 
-  const allCharacters = [...state.players, ...state.npcs];
-  const character = allCharacters.find((item) => item.id === characterId);
-
-  if (!character) {
+  if (!rootCharacter) {
     return;
   }
 
-  const statuses = character.statuses || [];
+  const statuses = rootCharacter.statuses || [];
 
   statuses.forEach((status) => {
     const nodes = status.logic?.nodes || [];
 
+    const nodesById = nodes.reduce((acc, node) => {
+      if (node.id) {
+        acc[node.id] = node;
+      }
+
+      return acc;
+    }, {});
+
     nodes.forEach((node) => {
+      if (node.type === 'condition') {
+        return;
+      }
+
       const parsed = parseStatusNode(node);
 
       if (!parsed) {
@@ -194,6 +432,20 @@ const processCharacterStatuses = (characterId, phase) => {
       }
 
       if (parsed.trigger !== phase) {
+        return;
+      }
+
+      const character = getCharacterById(characterId) || rootCharacter;
+
+      if (parsed.condition && !evaluateCondition(character, parsed.condition)) {
+        return;
+      }
+
+      if (
+        node.parentId &&
+        nodesById[node.parentId] &&
+        !evaluateNodeGate(nodesById[node.parentId], nodesById, character, phase)
+      ) {
         return;
       }
 
@@ -244,7 +496,7 @@ const processCharacterStatuses = (characterId, phase) => {
 };
 
 const applyStatusEngine = () => {
-  if (useAppStore.getState().__statusEngineApplied) {
+  if (useAppStore.getState().__statusEngineV2Applied) {
     return;
   }
 
@@ -254,7 +506,7 @@ const applyStatusEngine = () => {
     useAppStore.getState().addStatusToCharacter;
 
   useAppStore.setState({
-    __statusEngineApplied: true,
+    __statusEngineV2Applied: true,
 
     startCombat: (...args) => {
       originalStartCombat(...args);
