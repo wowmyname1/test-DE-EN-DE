@@ -203,6 +203,7 @@ function AddStatusModal() {
       color: template.color || '#a855f7',
       description: template.description || '',
       duration: durationValue,
+      logic: template.logic,
     });
 
     closeModal();
@@ -520,18 +521,37 @@ function StatusConstructorModal() {
     }));
   };
 
-  const addTrigger = () => {
+  const nodeTypeLabel = (type) => {
+    if (type === 'trigger') {
+      return '⚡ Триггер';
+    }
+
+    if (type === 'condition') {
+      return '✅ Условие';
+    }
+
+    if (type === 'action') {
+      return '🎯 Действие';
+    }
+
+    return 'Узел';
+  };
+
+  const addNode = (type) => {
     setNodes((prev) => [
       ...prev,
       {
         id: uid(),
-        type: 'trigger',
+        type,
+        trigger: type === 'action' ? 'start' : '',
+        effectType: type === 'action' ? 'damage' : '',
+        formula: type === 'action' ? '1d6' : '',
         text: '',
       },
     ]);
   };
 
-  const updateNode = (id, text) => {
+  const updateNode = (id, patch) => {
     setNodes((prev) =>
       prev.map((node) => {
         if (node.id !== id) {
@@ -540,7 +560,7 @@ function StatusConstructorModal() {
 
         return {
           ...node,
-          text,
+          ...patch,
         };
       })
     );
@@ -625,23 +645,136 @@ function StatusConstructorModal() {
             дерево — каждый дочерний срабатывает только если родитель прошёл.
           </p>
 
-          <button type="button" className="btn" onClick={addTrigger}>
-            ⚡ + Триггер
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn" onClick={() => addNode('trigger')}>
+              ⚡ + Триггер
+            </button>
+
+            <button type="button" className="btn" onClick={() => addNode('condition')}>
+              ✅ + Условие
+            </button>
+
+            <button type="button" className="btn" onClick={() => addNode('action')}>
+              🎯 + Действие
+            </button>
+          </div>
 
           <div className="space-y-2">
-            {nodes.map((node) => (
-              <div key={node.id} className="flex gap-2">
-                <input
-                  className="input"
-                  value={node.text}
-                  placeholder="Описание триггера"
-                  onChange={(event) => updateNode(node.id, event.target.value)}
-                />
+            {nodes.length === 0 && (
+              <p className="text-sm text-slate-500">Узлов пока нет.</p>
+            )}
 
-                <button type="button" className="btn btn-danger px-3" onClick={() => removeNode(node.id)}>
-                  ✕
-                </button>
+            {nodes.map((node) => (
+              <div key={node.id} className="card space-y-2 bg-slate-950">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium">{nodeTypeLabel(node.type)}</div>
+
+                  <button
+                    type="button"
+                    className="btn btn-danger px-3"
+                    onClick={() => removeNode(node.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <label className="block text-sm">
+                  <span className="label">Тип узла</span>
+
+                  <select
+                    className="input"
+                    value={node.type}
+                    onChange={(event) => {
+                      const type = event.target.value;
+
+                      updateNode(node.id, {
+                        type,
+                        trigger:
+                          type === 'action'
+                            ? node.trigger || 'start'
+                            : '',
+                        effectType:
+                          type === 'action'
+                            ? node.effectType || 'damage'
+                            : '',
+                        formula:
+                          type === 'action'
+                            ? node.formula || '1d6'
+                            : '',
+                      });
+                    }}
+                  >
+                    <option value="trigger">⚡ Триггер</option>
+                    <option value="condition">✅ Условие</option>
+                    <option value="action">🎯 Действие</option>
+                  </select>
+                </label>
+
+                {node.type === 'action' && (
+                  <div className="grid gap-2 md:grid-cols-3">
+                    <label className="text-sm">
+                      <span className="label">Когда</span>
+
+                      <select
+                        className="input"
+                        value={node.trigger || 'start'}
+                        onChange={(event) =>
+                          updateNode(node.id, { trigger: event.target.value })
+                        }
+                      >
+                        <option value="start">Начало хода</option>
+                        <option value="end">Конец хода</option>
+                      </select>
+                    </label>
+
+                    <label className="text-sm">
+                      <span className="label">Эффект</span>
+
+                      <select
+                        className="input"
+                        value={node.effectType || 'damage'}
+                        onChange={(event) =>
+                          updateNode(node.id, { effectType: event.target.value })
+                        }
+                      >
+                        <option value="damage">Урон</option>
+                        <option value="healing">Лечение</option>
+                        <option value="temp">Временные HP</option>
+                      </select>
+                    </label>
+
+                    <label className="text-sm">
+                      <span className="label">Формула</span>
+                      <input
+                        className="input"
+                        value={node.formula || ''}
+                        onChange={(event) =>
+                          updateNode(node.id, { formula: event.target.value })
+                        }
+                        placeholder="Например: 1d6"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <label className="block text-sm">
+                  <span className="label">
+                    {node.type === 'action' ? 'Комментарий' : 'Описание'}
+                  </span>
+
+                  <input
+                    className="input"
+                    value={node.text || ''}
+                    onChange={(event) =>
+                      updateNode(node.id, { text: event.target.value })
+                    }
+                    placeholder={
+                      node.type === 'action'
+                        ? 'Например: огонь наносит урон при активации'
+                        : 'Описание логики узла'
+                    }
+                  />
+                </label>
               </div>
             ))}
           </div>
