@@ -1,24 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { uid } from '../utils/id.js';
 import { rollExpression } from '../utils/dice.js';
+import { uid } from '../utils/id.js';
 
 const toNumber = (value, fallback = 0) => {
-  if (value === '' || value === null || value === undefined) {
-    return fallback;
-  }
-
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const defaultCharacter = (side, data = {}) => {
-  const hpMax = toNumber(data.hpMax, 0);
-
+const normalizeCharacter = (side, data) => {
+  const hpMax = toNumber(data.hpMax);
   const hpCurrent =
-    data.hpCurrent === '' || data.hpCurrent === null || data.hpCurrent === undefined
+    data.hpCurrent === '' || data.hpCurrent === undefined
       ? hpMax
-      : toNumber(data.hpCurrent, hpMax);
+      : toNumber(data.hpCurrent);
 
   return {
     id: uid(),
@@ -28,13 +23,35 @@ const defaultCharacter = (side, data = {}) => {
     level: String(data.level || '').trim(),
     hpMax,
     hpCurrent,
-    ac: toNumber(data.ac, 0),
-    initiative: toNumber(data.initiative, 0),
-    color: String(data.color || '').trim() || '#64748b',
+    ac: toNumber(data.ac),
+    initiative: toNumber(data.initiative),
+    color: data.color || (side === 'player' ? '#22c55e' : '#ef4444'),
     tempHp: 0,
     statuses: [],
   };
 };
+
+const decrementStatuses = (characters) =>
+  characters.map((character) => ({
+    ...character,
+    statuses: (character.statuses || [])
+      .map((status) => {
+        if (status.duration === null || status.duration === undefined) {
+          return status;
+        }
+
+        return {
+          ...status,
+          duration: toNumber(status.duration) - 1,
+        };
+      })
+      .filter(
+        (status) =>
+          status.duration === null ||
+          status.duration === undefined ||
+          status.duration > 0
+      ),
+  }));
 
 export const useAppStore = create(
   persist(
@@ -43,415 +60,442 @@ export const useAppStore = create(
       turnIndex: null,
       combatStarted: false,
       initiativeOrder: [],
+      selectedCharacterId: null,
       players: [],
       npcs: [],
-      selectedCharacterId: null,
-
+      statusTemplates: [],
+      spells: [],
+      quickRolls: [],
+      logs: [],
       dice: {
         formula: '1d20',
         mode: 'single',
         lastResult: null,
       },
-
-      quickRolls: [
-        { id: 'quick-attack', name: 'Атака', formula: '1d20+5' },
-        { id: 'quick-damage', name: 'Урон', formula: '1d8+3' },
-      ],
-
-      statusTemplates: [
-        {
-          id: 'status-bless',
-          name: 'Благословение',
-          icon: '✨',
-          color: '#22c55e',
-          duration: 10,
-          description: 'Дополнительный бонус к броскам.',
-        },
-        {
-          id: 'status-haste',
-          name: 'Ускорение',
-          icon: '💨',
-          color: '#38bdf8',
-          duration: 10,
-          description: 'Дополнительное действие или бонус к скорости.',
-        },
-      ],
-
-      spells: [],
-      logs: [],
-
       activeModal: null,
       modalPayload: {},
 
-      openModal: (modal, payload = {}) => {
-        set({ activeModal: modal, modalPayload: payload });
-      },
-
-      closeModal: () => {
-        set({ activeModal: null, modalPayload: {} });
-      },
-
-      selectCharacter: (id) => {
-        set({ selectedCharacterId: id });
-      },
-
-      addCharacter: (side, data) => {
-        set((state) => {
-          const character = defaultCharacter(side, data);
-
-          return side === 'npc'
-            ? { npcs: [...state.npcs, character] }
-            : { players: [...state.players, character] };
-        });
-      },
-
-      removeCharacter: (side, id) => {
-        set((state) => {
-          const filterList = (list) => list.filter((item) => item.id !== id);
-
-          return {
-            players: filterList(state.players),
-            npcs: filterList(state.npcs),
-            selectedCharacterId: state.selectedCharacterId === id ? null : state.selectedCharacterId,
-            initiativeOrder: state.initiativeOrder.filter((characterId) => characterId !== id),
-          };
-        });
-      },
-
-      updateCharacter: (side, id, patch) => {
-        set((state) => {
-          const updateList = (list) =>
-            list.map((item) => (item.id === id ? { ...item, ...patch } : item));
-
-          return {
-            players: updateList(state.players),
-            npcs: updateList(state.npcs),
-          };
-        });
-      },
-
-      addStatusToCharacter: (characterId, status) => {
-        set((state) => {
-          const updateList = (list) =>
-            list.map((character) => {
-              if (character.id !== characterId) {
-                return character;
-              }
-
-              return {
-                ...character,
-                statuses: [
-                  ...(character.statuses || []),
-                  {
-                    id: uid(),
-                    ...status,
-                  },
-                ],
-              };
-            });
-
-          return {
-            players: updateList(state.players),
-            npcs: updateList(state.npcs),
-          };
-        });
-      },
-
-      removeStatusFromCharacter: (characterId, statusId) => {
-        set((state) => {
-          const updateList = (list) =>
-            list.map((character) => {
-              if (character.id !== characterId) {
-                return character;
-              }
-
-              return {
-                ...character,
-                statuses: (character.statuses || []).filter((status) => status.id !== statusId),
-              };
-            });
-
-          return {
-            players: updateList(state.players),
-            npcs: updateList(state.npcs),
-          };
-        });
-      },
-
-      startCombat: () => {
-        const state = get();
-        const allCharacters = [...state.players, ...state.npcs];
-
-        if (!allCharacters.length) {
-          get().addLog('Нельзя начать бой без персонажей', 'error');
-          return;
-        }
-
-        const order = [...allCharacters]
-          .sort((a, b) => Number(b.initiative || 0) - Number(a.initiative || 0))
-          .map((character) => character.id);
-
+      openModal: (modal, payload = {}) =>
         set({
-          combatStarted: true,
-          initiativeOrder: order,
-          turnIndex: 0,
-          round: 1,
-        });
+          activeModal: modal,
+          modalPayload: payload,
+        }),
 
-        get().addLog('⚔️ Бой начат', 'combat');
-      },
-
-      nextTurn: () => {
-        set((state) => {
-          if (!state.combatStarted || !state.initiativeOrder.length) {
-            return {};
-          }
-
-          const nextIndex = (state.turnIndex ?? -1) + 1;
-
-          if (nextIndex >= state.initiativeOrder.length) {
-            return {
-              turnIndex: 0,
-              round: state.round + 1,
-            };
-          }
-
-          return {
-            turnIndex: nextIndex,
-          };
-        });
-      },
-
-      resetCombat: () => {
+      closeModal: () =>
         set({
-          round: 1,
-          turnIndex: null,
-          combatStarted: false,
-          initiativeOrder: [],
-        });
+          activeModal: null,
+          modalPayload: {},
+        }),
 
-        get().addLog('🔄 Бой сброшен', 'combat');
-      },
-
-      setDice: (patch) => {
-        set((state) => ({
-          dice: {
-            ...state.dice,
-            ...patch,
-          },
-        }));
-      },
-
-      appendFormula: (token) => {
-        set((state) => {
-          let formula = state.dice.formula || '';
-
-          if (token === '+' || token === '-') {
-            if (!formula) {
-              formula = token === '-' ? '-' : '';
-            } else if (/[+\-]$/.test(formula)) {
-              formula = formula.slice(0, -1) + token;
-            } else {
-              formula += token;
-            }
-          } else {
-            const diceToken = token.startsWith('d') ? `1${token}` : token;
-
-            if (!formula || /[+\-]$/.test(formula)) {
-              formula += diceToken;
-            } else {
-              formula += `+${diceToken}`;
-            }
-          }
-
-          return {
-            dice: {
-              ...state.dice,
-              formula,
-            },
-          };
-        });
-      },
-
-      addLog: (text, type = 'info') => {
+      addLog: (text) =>
         set((state) => ({
           logs: [
             {
               id: uid(),
               time: new Date().toLocaleTimeString(),
               text,
-              type,
             },
             ...state.logs,
-          ].slice(0, 80),
-        }));
-      },
+          ].slice(0, 100),
+        })),
 
-      rollFormula: (formulaOverride = null) => {
-        const state = get();
-        const formula = formulaOverride ?? state.dice.formula;
+      addCharacter: (side, data) =>
+        set((state) => {
+          const character = normalizeCharacter(side, data);
 
-        try {
-          const result = rollExpression(formula);
+          if (side === 'npc') {
+            return {
+              npcs: [...state.npcs, character],
+            };
+          }
 
-          set((prev) => ({
-            dice: {
-              ...prev.dice,
-              lastResult: {
-                formula,
-                total: result.total,
-                details: result.details,
-                error: null,
-                at: Date.now(),
-              },
-            },
-          }));
+          return {
+            players: [...state.players, character],
+          };
+        }),
 
-          get().addLog(`🎲 ${formula} = ${result.total}`, 'roll');
+      removeCharacter: (side, id) =>
+        set((state) => {
+          const players =
+            side === 'player'
+              ? state.players.filter((item) => item.id !== id)
+              : state.players;
 
-          return result;
-        } catch (error) {
-          set((prev) => ({
-            dice: {
-              ...prev.dice,
-              lastResult: {
-                formula,
-                total: null,
-                details: [],
-                error: error.message,
-                at: Date.now(),
-              },
-            },
-          }));
+          const npcs =
+            side === 'npc'
+              ? state.npcs.filter((item) => item.id !== id)
+              : state.npcs;
 
-          get().addLog(`❌ ${formula}: ${error.message}`, 'error');
+          const currentId = state.initiativeOrder[state.turnIndex ?? -1];
+          const initiativeOrder = state.initiativeOrder.filter(
+            (itemId) => itemId !== id
+          );
 
-          return null;
-        }
-      },
+          let turnIndex = state.turnIndex;
 
-      addQuickRoll: (item) => {
+          if (initiativeOrder.length === 0) {
+            turnIndex = null;
+          } else if (turnIndex !== null) {
+            if (currentId === id) {
+              turnIndex = Math.min(turnIndex, initiativeOrder.length - 1);
+            } else if (turnIndex >= initiativeOrder.length) {
+              turnIndex = initiativeOrder.length - 1;
+            }
+          }
+
+          return {
+            players,
+            npcs,
+            initiativeOrder,
+            turnIndex,
+            selectedCharacterId:
+              state.selectedCharacterId === id ? null : state.selectedCharacterId,
+          };
+        }),
+
+      selectCharacter: (id) =>
         set((state) => ({
-          quickRolls: [
-            ...state.quickRolls,
-            {
-              id: uid(),
-              ...item,
-            },
-          ],
-        }));
-      },
+          selectedCharacterId: state.selectedCharacterId === id ? null : id,
+        })),
 
-      removeQuickRoll: (id) => {
-        set((state) => ({
-          quickRolls: state.quickRolls.filter((item) => item.id !== id),
-        }));
-      },
+      addStatusToCharacter: (characterId, status) =>
+        set((state) => {
+          const addStatus = (character) => {
+            if (character.id !== characterId) {
+              return character;
+            }
 
-      addStatusTemplate: (item) => {
+            return {
+              ...character,
+              statuses: [
+                ...(character.statuses || []),
+                {
+                  id: uid(),
+                  icon: '✨',
+                  color: '#a855f7',
+                  duration: null,
+                  ...status,
+                },
+              ],
+            };
+          };
+
+          return {
+            players: state.players.map(addStatus),
+            npcs: state.npcs.map(addStatus),
+          };
+        }),
+
+      removeStatusFromCharacter: (characterId, statusId) =>
+        set((state) => {
+          const removeStatus = (character) => {
+            if (character.id !== characterId) {
+              return character;
+            }
+
+            return {
+              ...character,
+              statuses: (character.statuses || []).filter(
+                (status) => status.id !== statusId
+              ),
+            };
+          };
+
+          return {
+            players: state.players.map(removeStatus),
+            npcs: state.npcs.map(removeStatus),
+          };
+        }),
+
+      addStatusTemplate: (template) =>
         set((state) => ({
           statusTemplates: [
             ...state.statusTemplates,
             {
               id: uid(),
-              ...item,
+              icon: '✨',
+              color: '#a855f7',
+              description: '',
+              duration: null,
+              ...template,
             },
           ],
-        }));
-      },
+        })),
 
-      addSpell: (item) => {
+      addSpell: (spell) =>
         set((state) => ({
           spells: [
             ...state.spells,
             {
               id: uid(),
-              ...item,
+              level: 0,
+              icon: '✨',
+              school: 'Воплощение',
+              castTime: '',
+              range: '',
+              duration: '',
+              description: '',
+              ...spell,
             },
           ],
-        }));
-      },
+        })),
 
-      applyLastRollToCharacter: (kind) => {
-        const state = get();
-        const amount = state.dice.lastResult?.total;
+      addQuickRoll: (quickRoll) =>
+        set((state) => ({
+          quickRolls: [
+            ...state.quickRolls,
+            {
+              id: uid(),
+              ...quickRoll,
+            },
+          ],
+        })),
 
-        if (!Number.isFinite(amount) || amount <= 0) {
-          get().addLog('Нет положительного результата для применения', 'error');
-          return;
-        }
+      removeQuickRoll: (id) =>
+        set((state) => ({
+          quickRolls: state.quickRolls.filter((item) => item.id !== id),
+        })),
 
-        const targetId =
-          state.selectedCharacterId || state.initiativeOrder[state.turnIndex ?? -1] || null;
-
-        if (!targetId) {
-          get().addLog('Выберите персонажа или начните бой', 'error');
-          return;
-        }
-
-        set((prev) => {
-          const updateList = (list) =>
-            list.map((character) => {
-              if (character.id !== targetId) {
-                return character;
-              }
-
-              if (kind === 'damage') {
-                let remaining = amount;
-                let tempHp = Number(character.tempHp || 0);
-                let hpCurrent = Number(character.hpCurrent || 0);
-
-                if (tempHp > 0) {
-                  const absorbed = Math.min(tempHp, remaining);
-                  tempHp -= absorbed;
-                  remaining -= absorbed;
-                }
-
-                hpCurrent = Math.max(0, hpCurrent - remaining);
-
-                return {
-                  ...character,
-                  tempHp,
-                  hpCurrent,
-                };
-              }
-
-              if (kind === 'healing') {
-                const hpMax = Number(character.hpMax || 0);
-                const hpCurrent = Number(character.hpCurrent || 0);
-
-                return {
-                  ...character,
-                  hpCurrent: hpMax > 0 ? Math.min(hpMax, hpCurrent + amount) : hpCurrent + amount,
-                };
-              }
-
-              if (kind === 'temp') {
-                return {
-                  ...character,
-                  tempHp: Number(character.tempHp || 0) + amount,
-                };
-              }
-
-              return character;
-            });
+      startCombat: () =>
+        set((state) => {
+          const allCharacters = [...state.players, ...state.npcs];
+          const initiativeOrder = [...allCharacters]
+            .sort((a, b) => toNumber(b.initiative) - toNumber(a.initiative))
+            .map((character) => character.id);
 
           return {
-            players: updateList(prev.players),
-            npcs: updateList(prev.npcs),
+            initiativeOrder,
+            turnIndex: initiativeOrder.length ? 0 : null,
+            combatStarted: initiativeOrder.length > 0,
+            round: 1,
+            selectedCharacterId: initiativeOrder[0] ?? null,
           };
+        }),
+
+      nextTurn: () =>
+        set((state) => {
+          if (!state.initiativeOrder.length) {
+            return {};
+          }
+
+          const currentIndex =
+            state.turnIndex === null ? -1 : toNumber(state.turnIndex, 0);
+          const nextIndex = currentIndex + 1;
+
+          if (nextIndex >= state.initiativeOrder.length) {
+            return {
+              players: decrementStatuses(state.players),
+              npcs: decrementStatuses(state.npcs),
+              turnIndex: 0,
+              round: toNumber(state.round, 1) + 1,
+              selectedCharacterId: state.initiativeOrder[0],
+            };
+          }
+
+          return {
+            turnIndex: nextIndex,
+            selectedCharacterId: state.initiativeOrder[nextIndex],
+          };
+        }),
+
+      resetCombat: () =>
+        set({
+          round: 1,
+          turnIndex: null,
+          combatStarted: false,
+          initiativeOrder: [],
+          selectedCharacterId: null,
+        }),
+
+      setDice: (patch) =>
+        set((state) => ({
+          dice: {
+            ...state.dice,
+            ...patch,
+          },
+        })),
+
+      appendFormula: (token) =>
+        set((state) => {
+          const formula = String(state.dice.formula || '');
+          const trimmed = formula.trim();
+
+          if (token === '+' || token === '-') {
+            if (!trimmed) {
+              return {
+                dice: {
+                  ...state.dice,
+                  formula: token === '-' ? '-' : '',
+                },
+              };
+            }
+
+            if (/[+\-]$/.test(trimmed)) {
+              return {
+                dice: {
+                  ...state.dice,
+                  formula: `${trimmed.slice(0, -1)}${token}`,
+                },
+              };
+            }
+
+            return {
+              dice: {
+                ...state.dice,
+                formula: `${trimmed}${token}`,
+              },
+            };
+          }
+
+          const term = token.startsWith('d') ? `1${token}` : token;
+
+          if (!trimmed) {
+            return {
+              dice: {
+                ...state.dice,
+                formula: term,
+              },
+            };
+          }
+
+          if (/[+\-]$/.test(trimmed)) {
+            return {
+              dice: {
+                ...state.dice,
+                formula: `${trimmed}${term}`,
+              },
+            };
+          }
+
+          return {
+            dice: {
+              ...state.dice,
+              formula: `${trimmed}+${term}`,
+            },
+          };
+        }),
+
+      rollFormula: (formulaOverride) => {
+        const state = get();
+        const formula = String(formulaOverride ?? state.dice.formula ?? '').trim();
+
+        try {
+          const result = rollExpression(formula);
+
+          set({
+            dice: {
+              ...state.dice,
+              formula,
+              lastResult: {
+                formula,
+                total: result.total,
+                details: result.details,
+                error: null,
+              },
+            },
+          });
+
+          get().addLog(`Бросок ${formula} = ${result.total}`);
+        } catch (error) {
+          set({
+            dice: {
+              ...state.dice,
+              formula,
+              lastResult: {
+                formula,
+                total: 0,
+                details: [],
+                error: error.message,
+              },
+            },
+          });
+        }
+      },
+
+      applyLastRollToCharacter: (type) => {
+        const state = get();
+        const targetId =
+          state.selectedCharacterId ||
+          state.initiativeOrder[state.turnIndex ?? -1];
+        const total = toNumber(state.dice.lastResult?.total);
+
+        if (!targetId || total <= 0) {
+          return;
+        }
+
+        const allCharacters = [...state.players, ...state.npcs];
+        const target = allCharacters.find(
+          (character) => character.id === targetId
+        );
+
+        if (!target) {
+          return;
+        }
+
+        const apply = (character) => {
+          if (character.id !== targetId) {
+            return character;
+          }
+
+          if (type === 'damage') {
+            let remaining = total;
+            let tempHp = toNumber(character.tempHp);
+
+            if (tempHp > 0) {
+              const absorbed = Math.min(tempHp, remaining);
+              tempHp -= absorbed;
+              remaining -= absorbed;
+            }
+
+            const hpCurrent = Math.max(
+              0,
+              toNumber(character.hpCurrent) - remaining
+            );
+
+            return {
+              ...character,
+              tempHp,
+              hpCurrent,
+            };
+          }
+
+          if (type === 'healing') {
+            const hpMax = toNumber(character.hpMax);
+            const hpCurrent = toNumber(character.hpCurrent);
+            const nextHp =
+              hpMax > 0 ? Math.min(hpMax, hpCurrent + total) : hpCurrent + total;
+
+            return {
+              ...character,
+              hpCurrent: nextHp,
+            };
+          }
+
+          if (type === 'temp') {
+            return {
+              ...character,
+              tempHp: toNumber(character.tempHp) + total,
+            };
+          }
+
+          return character;
+        };
+
+        set({
+          players: state.players.map(apply),
+          npcs: state.npcs.map(apply),
         });
 
-        if (kind === 'damage') {
-          get().addLog(`⚔️ Урон ${amount} применён`, 'action');
+        if (type === 'damage') {
+          get().addLog(`${target.name}: урон ${total}`);
         }
 
-        if (kind === 'healing') {
-          get().addLog(`💚 Лечение ${amount} применено`, 'action');
+        if (type === 'healing') {
+          get().addLog(`${target.name}: лечение ${total}`);
         }
 
-        if (kind === 'temp') {
-          get().addLog(`🛡️ Временные HP ${amount} применены`, 'action');
+        if (type === 'temp') {
+          get().addLog(`${target.name}: временные HP +${total}`);
         }
       },
     }),
@@ -463,14 +507,14 @@ export const useAppStore = create(
         turnIndex: state.turnIndex,
         combatStarted: state.combatStarted,
         initiativeOrder: state.initiativeOrder,
+        selectedCharacterId: state.selectedCharacterId,
         players: state.players,
         npcs: state.npcs,
-        selectedCharacterId: state.selectedCharacterId,
-        dice: state.dice,
-        quickRolls: state.quickRolls,
         statusTemplates: state.statusTemplates,
         spells: state.spells,
+        quickRolls: state.quickRolls,
         logs: state.logs,
+        dice: state.dice,
       }),
     }
   )
