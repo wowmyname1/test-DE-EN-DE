@@ -3,8 +3,8 @@ import EditCharacterModal from './components/EditCharacterModal.jsx';
 import PresetsModal from './components/PresetsModal.jsx';
 import MapBoard from './components/MapBoard.jsx';
 import TopBar from './components/layout/TopBar.jsx';
-import SidebarCharacters from './components/characters/SidebarCharacters.jsx';
-import RightPanel from './components/panels/RightPanel.jsx';
+import CharacterPanel from './components/characters/CharacterPanel.jsx';
+import DiceBar from './components/panels/DiceBar.jsx';
 import { useCombatHotkeys } from './hooks/useCombatHotkeys.js';
 
 export default function App() {
@@ -15,10 +15,12 @@ export default function App() {
       <TopBar />
 
       <div className="flex min-h-0 flex-1 gap-2 p-2">
-        <SidebarCharacters />
+        <CharacterPanel side="player" />
         <MapBoard />
-        <RightPanel />
+        <CharacterPanel side="npc" />
       </div>
+
+      <DiceBar />
 
       <GlobalModals />
       <EditCharacterModal />
