@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { uid } from '../utils/id.js';
 
+const effectLabel = (value) => {
+  const map = {
+    damage: 'Урон',
+    healing: 'Лечение',
+    temp: 'Временные HP',
+    status: 'Статус',
+  };
+
+  return map[value] || value;
+};
+
 function Modal({ title, onClose, children, wide = false }) {
   return (
     <div
@@ -441,18 +452,34 @@ function SpellCatalogModal() {
         {filteredSpells.length === 0 && <p className="text-slate-400">Заклинаний пока нет.</p>}
 
         {filteredSpells.map((spell) => (
-          <div key={spell.id} className="card">
-            <div className="font-medium">
-              {spell.icon} {spell.name}
+          <div key={spell.id} className="card flex items-start justify-between gap-2">
+            <div>
+              <div className="font-medium">
+                {spell.icon} {spell.name}
+              </div>
+
+              <div className="text-xs text-slate-400">
+                {spell.level === 0 ? 'Заговор' : `Уровень ${spell.level}`} • {spell.school}
+              </div>
+
+              {spell.description && (
+                <div className="mt-1 text-sm text-slate-300">{spell.description}</div>
+              )}
+
+              {spell.logic?.effectType && (
+                <div className="mt-1 text-xs text-slate-500">
+                  Эффект: {effectLabel(spell.logic.effectType)}
+                  {spell.logic.formula ? ` • ${spell.logic.formula}` : ''}
+                </div>
+              )}
             </div>
 
-            <div className="text-xs text-slate-400">
-              {spell.level === 0 ? 'Заговор' : `Уровень ${spell.level}`} • {spell.school}
-            </div>
-
-            {spell.description && (
-              <div className="mt-1 text-sm text-slate-300">{spell.description}</div>
-            )}
+            <button
+              className="btn btn-primary"
+              onClick={() => openModal('castSpell', { spellId: spell.id })}
+            >
+              Применить
+            </button>
           </div>
         ))}
       </div>
@@ -643,9 +670,14 @@ function SpellConstructorModal() {
   const closeModal = useAppStore((state) => state.closeModal);
   const openModal = useAppStore((state) => state.openModal);
   const addSpell = useAppStore((state) => state.addSpell);
+  const statusTemplates = useAppStore((state) => state.statusTemplates);
 
   const [tab, setTab] = useState('basic');
   const [targetMode, setTargetMode] = useState('single');
+  const [effectType, setEffectType] = useState('damage');
+  const [formula, setFormula] = useState('');
+  const [statusTemplateId, setStatusTemplateId] = useState('');
+  const [statusDuration, setStatusDuration] = useState('');
 
   const schools = [
     'Воплощение',
@@ -707,6 +739,10 @@ function SpellConstructorModal() {
       description: form.description.trim(),
       logic: {
         targetMode,
+        effectType,
+        formula,
+        statusTemplateId,
+        statusDuration,
       },
     });
 
@@ -788,6 +824,65 @@ function SpellConstructorModal() {
             <span className="label">Описание</span>
             <textarea className="input" rows={3} value={form.description} onChange={setField('description')} />
           </label>
+
+          <label className="text-sm">
+            <span className="label">Тип эффекта</span>
+
+            <select
+              className="input"
+              value={effectType}
+              onChange={(event) => setEffectType(event.target.value)}
+            >
+              <option value="damage">Урон</option>
+              <option value="healing">Лечение</option>
+              <option value="temp">Временные HP</option>
+              <option value="status">Наложить статус</option>
+            </select>
+          </label>
+
+          {effectType !== 'status' && (
+            <label className="text-sm">
+              <span className="label">Формула</span>
+              <input
+                className="input"
+                value={formula}
+                onChange={(event) => setFormula(event.target.value)}
+                placeholder="Например: 2d6"
+              />
+            </label>
+          )}
+
+          {effectType === 'status' && (
+            <>
+              <label className="text-sm">
+                <span className="label">Статус</span>
+
+                <select
+                  className="input"
+                  value={statusTemplateId}
+                  onChange={(event) => setStatusTemplateId(event.target.value)}
+                >
+                  <option value="">Без шаблона, именем заклинания</option>
+
+                  {statusTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.icon} {template.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="text-sm">
+                <span className="label">Длительность статуса (раунды, пусто = бессрочно)</span>
+                <input
+                  className="input"
+                  value={statusDuration}
+                  onChange={(event) => setStatusDuration(event.target.value)}
+                  placeholder="Например: 3"
+                />
+              </label>
+            </>
+          )}
         </div>
       )}
 
