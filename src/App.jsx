@@ -65,7 +65,7 @@ function CharacterCard({ character }) {
         <div className="flex gap-1">
           <button
             className="btn px-2 py-1"
-            title="Редактировать персонажа"
+            title="Редактировать"
             onClick={(event) => {
               event.stopPropagation();
               openModal('editCharacter', { characterId: character.id });
@@ -87,7 +87,7 @@ function CharacterCard({ character }) {
 
           <button
             className="btn btn-danger px-2 py-1"
-            title="Удалить персонажа"
+            title="Удалить"
             onClick={(event) => {
               event.stopPropagation();
               removeCharacter(character.side, character.id);
@@ -211,105 +211,103 @@ export default function App() {
     });
   };
 
+  const playerCount = state.players.length;
+  const npcCount = state.npcs.length;
+
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-slate-100">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="card flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-400">
-              D&D Encounter Builder
-            </p>
+        <header className="card space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-400">
+                D&D Encounter Builder
+              </p>
 
-            <h1 className="text-2xl font-bold">⚔️ D&D Encounter</h1>
+              <h1 className="text-2xl font-bold">⚔️ D&D Encounter</h1>
 
-            <p className="mt-1 text-sm text-slate-300">
-              Ход: {currentCharacter ? currentCharacter.name : '—'} Раунд{' '}
-              {state.round}
-            </p>
-          </div>
+              <p className="mt-1 text-sm text-slate-300">
+                Ход: {currentCharacter ? currentCharacter.name : '—'} Раунд {state.round}
+              </p>
+            </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button className="btn btn-primary" onClick={state.startCombat}>
-              ⚔️ Начать бой
-            </button>
-
-            <button className="btn" onClick={state.nextTurn}>
-              ▶ Следующий ход
-            </button>
-
-            <button className="btn" onClick={state.resetCombat}>
-              🔄 Сброс
-            </button>
-
-            <button className="btn" onClick={centerCurrent}>
-              🎯 Центрировать
-            </button>
-          </div>
-        </header>
-
-        <section className="card flex flex-wrap gap-2">
-          <button className="btn" onClick={() => state.openModal('addStatus')}>
-            Добавить статус
-          </button>
-
-          <button className="btn" onClick={() => state.openModal('addQuickRoll')}>
-            Добавить быстрый бросок
-          </button>
-
-          <button className="btn" onClick={() => state.openModal('statusCatalog')}>
-            ✨ Каталог статусов
-          </button>
-
-          <button className="btn" onClick={() => state.openModal('spellCatalog')}>
-            🔮 Каталог заклинаний
-          </button>
-        </section>
-
-        <InitiativePanel />
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="card space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">
-                🛡️ Игроки {state.players.length}
-              </h2>
-
+            <div className="flex flex-wrap gap-2">
               <button
                 className="btn btn-primary"
                 onClick={() => state.openModal('addCharacter', { side: 'player' })}
               >
                 + Добавить игрока
               </button>
-            </div>
 
-            <div className="space-y-2">
-              {state.players.map((character) => (
-                <CharacterCard key={character.id} character={character} />
-              ))}
-            </div>
-          </section>
+              <button className="btn btn-primary" onClick={state.startCombat}>
+                ⚔️ Начать бой
+              </button>
 
-          <section className="card space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">
-                👹 NPC / Монстры {state.npcs.length}
-              </h2>
+              <button className="btn" onClick={state.nextTurn}>
+                ▶ Следующий ход
+              </button>
 
-              <button
-                className="btn btn-primary"
-                onClick={() => state.openModal('addCharacter', { side: 'npc' })}
-              >
-                + Добавить NPC
+              <button className="btn" onClick={state.resetCombat}>
+                🔄 Сброс
+              </button>
+
+              <button className="btn" onClick={centerCurrent}>
+                🎯 Центрировать
               </button>
             </div>
+          </div>
+        </header>
 
-            <div className="space-y-2">
-              {state.npcs.map((character) => (
-                <CharacterCard key={character.id} character={character} />
-              ))}
-            </div>
-          </section>
-        </div>
+        <section className="card space-y-2">
+          <h2 className="text-lg font-semibold">Инициатива</h2>
+          <InitiativePanel />
+        </section>
+
+        <section className="card space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">🛡️ Игроки {playerCount}</h2>
+
+            <button
+              className="btn btn-primary"
+              onClick={() => state.openModal('addCharacter', { side: 'player' })}
+            >
+              + Добавить игрока
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {state.players.map((character) => (
+              <CharacterCard key={character.id} character={character} />
+            ))}
+
+            {playerCount === 0 && (
+              <p className="text-sm text-slate-500">Пока нет игроков.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="card space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">👹 NPC / Монстры {npcCount}</h2>
+
+            <button
+              className="btn btn-primary"
+              onClick={() => state.openModal('addCharacter', { side: 'npc' })}
+            >
+              + Добавить NPC
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {state.npcs.map((character) => (
+              <CharacterCard key={character.id} character={character} />
+            ))}
+
+            {npcCount === 0 && (
+              <p className="text-sm text-slate-500">Пока нет NPC.</p>
+            )}
+          </div>
+        </section>
 
         <section className="card space-y-3">
           <h2 className="text-lg font-semibold">🎲 Кубики</h2>
@@ -363,48 +361,21 @@ export default function App() {
           </div>
 
           <details className="card bg-slate-950">
-            <summary className="cursor-pointer font-medium">
-              📜 Синтаксис бросков
-            </summary>
+            <summary className="cursor-pointer font-medium">📜 Синтаксис бросков</summary>
 
             <div className="mt-2 grid gap-2 text-sm text-slate-300 md:grid-cols-2">
-              <div>
-                <code>2d6</code> — 2 кубика d6
-              </div>
-
-              <div>
-                <code>1d20+5</code> — d20 с модификатором
-              </div>
-
-              <div>
-                <code>4d6kh3</code> — бросить 4d6, лучшие 3
-              </div>
-
-              <div>
-                <code>2d20kl1</code> — бросить 2d20, худший
-              </div>
-
-              <div>
-                <code>2d6+1d4+3</code> — смесь костей
-              </div>
-
-              <div>
-                <code>8</code> — просто число
-              </div>
+              <div><code>2d6</code> — 2 кубика d6</div>
+              <div><code>1d20+5</code> — d20 с модификатором</div>
+              <div><code>4d6kh3</code> — бросить 4d6, лучшие 3</div>
+              <div><code>2d20kl1</code> — бросить 2d20, худший</div>
+              <div><code>2d6+1d4+3</code> — смесь костей</div>
+              <div><code>8</code> — просто число</div>
             </div>
 
             <div className="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-3">
-              <div>
-                Операторы: <code>+</code> сложение, <code>-</code> вычитание
-              </div>
-
-              <div>
-                Keep: <code>kh</code> — лучшие, <code>kl</code> — худшие
-              </div>
-
-              <div>
-                Порядок: <code>NdM[kh|kl]K</code>
-              </div>
+              <div>Операторы: <code>+</code> сложение, <code>-</code> вычитание</div>
+              <div>Keep: <code>kh</code> — лучшие, <code>kl</code> — худшие</div>
+              <div>Порядок: <code>NdM[kh|kl]K</code></div>
             </div>
           </details>
 
@@ -418,72 +389,14 @@ export default function App() {
               placeholder="Например: 2d6+1d4+3"
             />
 
-            <button
-              className="btn btn-primary"
-              onClick={() => state.rollFormula()}
-            >
+            <button className="btn btn-primary" onClick={() => state.rollFormula()}>
               🎲 Бросить
             </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-slate-400">Быстрые броски:</span>
-
-            {state.quickRolls.length === 0 && (
-              <span className="text-sm text-slate-500">нет</span>
-            )}
-
-            {state.quickRolls.map((quickRoll) => (
-              <div
-                key={quickRoll.id}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
-              >
-                <button onClick={() => state.rollFormula(quickRoll.formula)}>
-                  {quickRoll.name}: {quickRoll.formula}
-                </button>
-
-                <button
-                  className="text-slate-400 hover:text-red-400"
-                  title="Удалить быстрый бросок"
-                  onClick={() => state.removeQuickRoll(quickRoll.id)}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-
-            <button
-              className="btn"
-              onClick={() => state.openModal('addQuickRoll')}
-            >
-              Добавить быстрый бросок
-            </button>
-          </div>
-
-          {state.dice.lastResult && (
-            <div className="card bg-slate-950">
-              {state.dice.lastResult.error ? (
-                <p className="text-red-400">
-                  Ошибка: {state.dice.lastResult.error}
-                </p>
-              ) : (
-                <>
-                  <p className="text-lg font-bold">
-                    {state.dice.lastResult.formula} ={' '}
-                    {state.dice.lastResult.total}
-                  </p>
-
-                  <p className="mt-1 text-sm text-slate-400">
-                    {state.dice.lastResult.details.join(' | ')}
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-slate-400">
-              💾Персонаж {targetCharacter ? targetCharacter.name : '0'}
+              💾Персонаж{targetCharacter ? targetCharacter.name : '0'}
             </span>
 
             <button
@@ -511,6 +424,67 @@ export default function App() {
               onClick={() => state.applyLastRollToCharacter('temp')}
             >
               🛡️ Временные HPT
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button className="btn" onClick={() => state.openModal('addQuickRoll')}>
+              Добавить быстрый бросок
+            </button>
+
+            {state.quickRolls.map((quickRoll) => (
+              <div
+                key={quickRoll.id}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
+              >
+                <button onClick={() => state.rollFormula(quickRoll.formula)}>
+                  {quickRoll.name}: {quickRoll.formula}
+                </button>
+
+                <button
+                  className="text-slate-400 hover:text-red-400"
+                  title="Удалить"
+                  onClick={() => state.removeQuickRoll(quickRoll.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {state.dice.lastResult && (
+            <div className="card bg-slate-950">
+              {state.dice.lastResult.error ? (
+                <p className="text-red-400">
+                  Ошибка: {state.dice.lastResult.error}
+                </p>
+              ) : (
+                <>
+                  <p className="text-lg font-bold">
+                    {state.dice.lastResult.formula} = {state.dice.lastResult.total}
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-400">
+                    {state.dice.lastResult.details.join(' | ')}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+
+        <section className="card space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <button className="btn" onClick={() => state.openModal('addStatus')}>
+              Добавить статус
+            </button>
+
+            <button className="btn" onClick={() => state.openModal('statusCatalog')}>
+              ✨ Каталог статусов
+            </button>
+
+            <button className="btn" onClick={() => state.openModal('spellCatalog')}>
+              🔮 Каталог заклинаний
             </button>
           </div>
         </section>
