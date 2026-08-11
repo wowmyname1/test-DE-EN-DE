@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppStore } from './store/useAppStore.js';
+import { rollExpression } from './utils/dice.js';
 import GlobalModals from './components/Modals.jsx';
 import InitiativePanel from './components/InitiativePanel.jsx';
 import EditCharacterModal from './components/EditCharacterModal.jsx';
@@ -20,7 +21,148 @@ const modes = [
   { label: '🎯 Разброс 3', value: 'spread' },
 ];
 
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const applyAmountToCharacter = (character, type, amount) => {
+  if (type === 'damage') {
+    let remaining = amount;
+    let tempHp = toNumber(character.tempHp);
+
+    if (tempHp > 0) {
+      const absorbed = Math.min(tempHp, remaining);
+      tempHp -= absorbed;
+      remaining -= absorbed;
+    }
+
+    const hpCurrent = Math.max(0, toNumber(character.hpCurrent) - remaining);
+
+    return {
+      ...character,
+      tempHp,
+      hpCurrent,
+    };
+  }
+
+  if (type === 'healing') {
+    const hpMax = toNumber(character.hpMax);
+    const hpCurrent = toNumber(character.hpCurrent);
+
+    const nextHp =
+      hpMax > 0 ? Math.min(hpMax, hpCurrent + amount) : hpCurrent + amount;
+
+    return {
+      ...character,
+      hpCurrent: nextHp,
+    };
+  }
+
+  if (type === 'temp') {
+    return {
+      ...character,
+      tempHp: toNumber(character.tempHp) + amount,
+    };
+  }
+
+  return character;
+};
+
+const rollQuick = (formulaRaw) => {
+  const formula = String(formulaRaw || '').trim();
+
+  if (!formula) {
+    return;
+  }
+
+  try {
+    const result = rollExpression(formula);
+    const total = Math.max(0, toNumber(result.total));
+
+    useAppStore.getState().setDice({
+      lastResult: {
+        formula,
+        total,
+        details: result.details,
+        error: null,
+      },
+    });
+
+    useAppStore.getState().addLog(`Быстрый бросок ${formula} = ${total}`);
+  } catch (error) {
+    useAppStore.getState().setDice({
+      lastResult: {
+        formula,
+        total: 0,
+        details: [],
+        error: error.message,
+      },
+    });
+  }
+};
+
+const rollAndApplyToCharacter = (character, diceToken, type) => {
+  const formula = `1${diceToken}`;
+
+  try {
+    const result = rollExpression(formula);
+    const amount = Math.max(0, toNumber(result.total));
+
+    if (amount <= 0) {
+      return;
+    }
+
+    useAppStore.setState((prev) => {
+      const apply = (list) =>
+        list.map((item) => {
+          if (item.id !== character.id) {
+            return item;
+          }
+
+          return applyAmountToCharacter(item, type, amount);
+        });
+
+      return {
+        players: apply(prev.players),
+        npcs: apply(prev.npcs),
+      };
+    });
+
+    useAppStore.getState().setDice({
+      lastResult: {
+        formula,
+        total: amount,
+        details: result.details,
+        error: null,
+      },
+    });
+
+    const label =
+      type === 'damage'
+        ? 'урон'
+        : type === 'healing'
+          ? 'лечение'
+          : 'временные HP';
+
+    useAppStore
+      .getState()
+      .addLog(`${character.name}: быстрый ${label} ${amount} (${formula})`);
+  } catch (error) {
+    useAppStore.getState().setDice({
+      lastResult: {
+        formula,
+        total: 0,
+        details: [],
+        error: error.message,
+      },
+    });
+  }
+};
+
 function CharacterCard({ character }) {
+  const [quickDie, setQuickDie] = useState('d6');
+
   const selectedCharacterId = useAppStore((state) => state.selectedCharacterId);
   const selectCharacter = useAppStore((state) => state.selectCharacter);
   const removeCharacter = useAppStore((state) => state.removeCharacter);
@@ -65,7 +207,7 @@ function CharacterCard({ character }) {
         <div className="flex gap-1">
           <button
             className="btn px-2 py-1"
-            title="Редактировать"
+            title="Редактировать персонажа"
             onClick={(event) => {
               event.stopPropagation();
               openModal('editCharacter', { characterId: character.id });
@@ -87,7 +229,7 @@ function CharacterCard({ character }) {
 
           <button
             className="btn btn-danger px-2 py-1"
-            title="Удалить"
+            title="Удалить персонажа"
             onClick={(event) => {
               event.stopPropagation();
               removeCharacter(character.side, character.id);
@@ -103,6 +245,49 @@ function CharacterCard({ character }) {
         <div>AC: {character.ac}</div>
         <div>Инициатива: {character.initiative}</div>
         <div>Врем. HP: {character.tempHp || 0}</div>
+      </div>
+
+      <div
+        className="mt-2 flex flex-wrap items-center gap-1"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span className="text-xs text-slate-500">Быстрый кубик:</span>
+
+        <select
+          className="input h-8 w-auto px-2 py-1 text-xs"
+          value={quickDie}
+          onChange={(event) => setQuickDie(event.target.value)}
+        >
+          {diceButtons.map((button) => (
+            <option key={button.token} value={button.token}>
+              {button.label}
+            </option>
+          ))}
+        </select>
+
+        <button
+          className="btn px-2 py-1 text-xs"
+          title="Бросить кубик и нанести урон"
+          onClick={() => rollAndApplyToCharacter(character, quickDie, 'damage')}
+        >
+          ⚔️ Урон
+        </button>
+
+        <button
+          className="btn px-2 py-1 text-xs"
+          title="Бросить кубик и вылечить"
+          onClick={() => rollAndApplyToCharacter(character, quickDie, 'healing')}
+        >
+          💚 Лечение
+        </button>
+
+        <button
+          className="btn px-2 py-1 text-xs"
+          title="Бросить кубик и дать временные HP"
+          onClick={() => rollAndApplyToCharacter(character, quickDie, 'temp')}
+        >
+          🛡️ Врем. HP
+        </button>
       </div>
 
       {(character.statuses || []).length > 0 && (
@@ -137,8 +322,6 @@ export default function App() {
 
   const currentId = state.initiativeOrder[state.turnIndex ?? -1];
   const allCharacters = [...state.players, ...state.npcs];
-  const currentCharacter = allCharacters.find((item) => item.id === currentId);
-
   const targetId = state.selectedCharacterId || currentId;
   const targetCharacter = allCharacters.find((item) => item.id === targetId);
 
@@ -200,72 +383,27 @@ export default function App() {
     };
   }, []);
 
-  const centerCurrent = () => {
-    if (!currentId) {
-      return;
-    }
-
-    document.getElementById(currentId)?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    });
-  };
-
-  const playerCount = state.players.length;
-  const npcCount = state.npcs.length;
-
   return (
     <main className="min-h-screen bg-slate-950 p-4 text-slate-100">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="card space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                D&D Encounter Builder
-              </p>
+        <header className="card">
+          <p className="text-xs uppercase tracking-wide text-slate-400">
+            D&D Encounter Builder
+          </p>
 
-              <h1 className="text-2xl font-bold">⚔️ D&D Encounter</h1>
+          <h1 className="text-2xl font-bold">⚔️ D&D Encounter</h1>
 
-              <p className="mt-1 text-sm text-slate-300">
-                Ход: {currentCharacter ? currentCharacter.name : '—'} Раунд {state.round}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="btn btn-primary"
-                onClick={() => state.openModal('addCharacter', { side: 'player' })}
-              >
-                + Добавить игрока
-              </button>
-
-              <button className="btn btn-primary" onClick={state.startCombat}>
-                ⚔️ Начать бой
-              </button>
-
-              <button className="btn" onClick={state.nextTurn}>
-                ▶ Следующий ход
-              </button>
-
-              <button className="btn" onClick={state.resetCombat}>
-                🔄 Сброс
-              </button>
-
-              <button className="btn" onClick={centerCurrent}>
-                🎯 Центрировать
-              </button>
-            </div>
-          </div>
+          <p className="mt-1 text-sm text-slate-400">
+            Управление боем находится в панели «Инициатива». Выберите персонажа,
+            бросайте кубики и применяйте эффекты.
+          </p>
         </header>
 
-        <section className="card space-y-2">
-          <h2 className="text-lg font-semibold">Инициатива</h2>
-          <InitiativePanel />
-        </section>
+        <InitiativePanel />
 
         <section className="card space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">🛡️ Игроки {playerCount}</h2>
+            <h2 className="text-lg font-semibold">🛡️ Игроки {state.players.length}</h2>
 
             <button
               className="btn btn-primary"
@@ -280,7 +418,7 @@ export default function App() {
               <CharacterCard key={character.id} character={character} />
             ))}
 
-            {playerCount === 0 && (
+            {state.players.length === 0 && (
               <p className="text-sm text-slate-500">Пока нет игроков.</p>
             )}
           </div>
@@ -288,7 +426,7 @@ export default function App() {
 
         <section className="card space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold">👹 NPC / Монстры {npcCount}</h2>
+            <h2 className="text-lg font-semibold">👹 NPC / Монстры {state.npcs.length}</h2>
 
             <button
               className="btn btn-primary"
@@ -303,7 +441,7 @@ export default function App() {
               <CharacterCard key={character.id} character={character} />
             ))}
 
-            {npcCount === 0 && (
+            {state.npcs.length === 0 && (
               <p className="text-sm text-slate-500">Пока нет NPC.</p>
             )}
           </div>
@@ -364,18 +502,43 @@ export default function App() {
             <summary className="cursor-pointer font-medium">📜 Синтаксис бросков</summary>
 
             <div className="mt-2 grid gap-2 text-sm text-slate-300 md:grid-cols-2">
-              <div><code>2d6</code> — 2 кубика d6</div>
-              <div><code>1d20+5</code> — d20 с модификатором</div>
-              <div><code>4d6kh3</code> — бросить 4d6, лучшие 3</div>
-              <div><code>2d20kl1</code> — бросить 2d20, худший</div>
-              <div><code>2d6+1d4+3</code> — смесь костей</div>
-              <div><code>8</code> — просто число</div>
+              <div>
+                <code>2d6</code> — 2 кубика d6
+              </div>
+
+              <div>
+                <code>1d20+5</code> — d20 с модификатором
+              </div>
+
+              <div>
+                <code>4d6kh3</code> — бросить 4d6, лучшие 3
+              </div>
+
+              <div>
+                <code>2d20kl1</code> — бросить 2d20, худший
+              </div>
+
+              <div>
+                <code>2d6+1d4+3</code> — смесь костей
+              </div>
+
+              <div>
+                <code>8</code> — просто число
+              </div>
             </div>
 
             <div className="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-3">
-              <div>Операторы: <code>+</code> сложение, <code>-</code> вычитание</div>
-              <div>Keep: <code>kh</code> — лучшие, <code>kl</code> — худшие</div>
-              <div>Порядок: <code>NdM[kh|kl]K</code></div>
+              <div>
+                Операторы: <code>+</code> сложение, <code>-</code> вычитание
+              </div>
+
+              <div>
+                Keep: <code>kh</code> — лучшие, <code>kl</code> — худшие
+              </div>
+
+              <div>
+                Порядок: <code>NdM[kh|kl]K</code>
+              </div>
             </div>
           </details>
 
@@ -389,7 +552,10 @@ export default function App() {
               placeholder="Например: 2d6+1d4+3"
             />
 
-            <button className="btn btn-primary" onClick={() => state.rollFormula()}>
+            <button
+              className="btn btn-primary"
+              onClick={() => state.rollFormula()}
+            >
               🎲 Бросить
             </button>
           </div>
@@ -427,29 +593,38 @@ export default function App() {
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button className="btn" onClick={() => state.openModal('addQuickRoll')}>
-              Добавить быстрый бросок
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-slate-400">Быстрые броски:</span>
+
+            {state.quickRolls.length === 0 && (
+              <span className="text-sm text-slate-500">нет</span>
+            )}
 
             {state.quickRolls.map((quickRoll) => (
               <div
                 key={quickRoll.id}
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-sm"
               >
-                <button onClick={() => state.rollFormula(quickRoll.formula)}>
+                <button onClick={() => rollQuick(quickRoll.formula)}>
                   {quickRoll.name}: {quickRoll.formula}
                 </button>
 
                 <button
                   className="text-slate-400 hover:text-red-400"
-                  title="Удалить"
+                  title="Удалить быстрый бросок"
                   onClick={() => state.removeQuickRoll(quickRoll.id)}
                 >
                   ✕
                 </button>
               </div>
             ))}
+
+            <button
+              className="btn"
+              onClick={() => state.openModal('addQuickRoll')}
+            >
+              Добавить быстрый бросок
+            </button>
           </div>
 
           {state.dice.lastResult && (
@@ -461,7 +636,8 @@ export default function App() {
               ) : (
                 <>
                   <p className="text-lg font-bold">
-                    {state.dice.lastResult.formula} = {state.dice.lastResult.total}
+                    {state.dice.lastResult.formula} ={' '}
+                    {state.dice.lastResult.total}
                   </p>
 
                   <p className="mt-1 text-sm text-slate-400">
@@ -473,20 +649,18 @@ export default function App() {
           )}
         </section>
 
-        <section className="card space-y-2">
-          <div className="flex flex-wrap gap-2">
-            <button className="btn" onClick={() => state.openModal('addStatus')}>
-              Добавить статус
-            </button>
+        <section className="card flex flex-wrap gap-2">
+          <button className="btn" onClick={() => state.openModal('addStatus')}>
+            Добавить статус
+          </button>
 
-            <button className="btn" onClick={() => state.openModal('statusCatalog')}>
-              ✨ Каталог статусов
-            </button>
+          <button className="btn" onClick={() => state.openModal('statusCatalog')}>
+            ✨ Каталог статусов
+          </button>
 
-            <button className="btn" onClick={() => state.openModal('spellCatalog')}>
-              🔮 Каталог заклинаний
-            </button>
-          </div>
+          <button className="btn" onClick={() => state.openModal('spellCatalog')}>
+            🔮 Каталог заклинаний
+          </button>
         </section>
 
         <section className="card space-y-2">
