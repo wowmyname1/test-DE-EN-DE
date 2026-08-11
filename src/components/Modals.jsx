@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import StatusConstructorV2 from './StatusConstructorV2.jsx';
 import { useAppStore } from '../store/useAppStore.js';
 import { uid } from '../utils/id.js';
 
@@ -1241,7 +1242,7 @@ export default function GlobalModals() {
       {activeModal === 'addQuickRoll' && <AddQuickRollModal />}
       {activeModal === 'statusCatalog' && <StatusCatalogModal />}
       {activeModal === 'spellCatalog' && <SpellCatalogModal />}
-      {activeModal === 'statusConstructor' && <StatusConstructorModal />}
+      {activeModal === 'statusConstructor' && <StatusConstructorV2 />}
       {activeModal === 'spellConstructor' && <SpellConstructorModal />}
     </>
   );
