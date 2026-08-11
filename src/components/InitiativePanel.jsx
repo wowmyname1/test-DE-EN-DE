@@ -7,6 +7,7 @@ export default function InitiativePanel() {
   const turnIndex = useAppStore((state) => state.turnIndex);
   const selectedCharacterId = useAppStore((state) => state.selectedCharacterId);
   const selectCharacter = useAppStore((state) => state.selectCharacter);
+  const refreshInitiative = useAppStore((state) => state.refreshInitiative);
 
   const allCharacters = [...players, ...npcs];
   const byId = new Map(allCharacters.map((character) => [character.id, character]));
@@ -28,7 +29,17 @@ export default function InitiativePanel() {
 
   return (
     <section className="card space-y-2">
-      <h2 className="text-lg font-semibold">Инициатива</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Инициатива</h2>
+
+        <button
+          className="btn"
+          title="Пересчитать порядок инициативы"
+          onClick={() => refreshInitiative?.()}
+        >
+          🔁 Пересчитать
+        </button>
+      </div>
 
       {visibleOrder.length === 0 ? (
         <p className="text-sm text-slate-400">
