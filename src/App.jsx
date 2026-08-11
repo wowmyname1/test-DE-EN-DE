@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore.js';
 import GlobalModals from './components/Modals.jsx';
 import InitiativePanel from './components/InitiativePanel.jsx';
+import EditCharacterModal from './components/EditCharacterModal.jsx';
 
 const diceButtons = [
   { label: '🔺 d4', token: 'd4' },
@@ -38,6 +39,9 @@ function CharacterCard({ character }) {
     <article
       id={character.id}
       onClick={() => selectCharacter(character.id)}
+      onDoubleClick={() =>
+        openModal('editCharacter', { characterId: character.id })
+      }
       className={`card cursor-pointer border-2 transition ${
         isCurrent
           ? 'border-amber-400 bg-amber-950/20'
@@ -59,6 +63,17 @@ function CharacterCard({ character }) {
         </div>
 
         <div className="flex gap-1">
+          <button
+            className="btn px-2 py-1"
+            title="Редактировать персонажа"
+            onClick={(event) => {
+              event.stopPropagation();
+              openModal('editCharacter', { characterId: character.id });
+            }}
+          >
+            ✏️
+          </button>
+
           <button
             className="btn px-2 py-1"
             title="Добавить статус"
@@ -516,6 +531,7 @@ export default function App() {
         </section>
 
         <GlobalModals />
+        <EditCharacterModal />
       </div>
     </main>
   );
