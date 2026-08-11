@@ -4,6 +4,7 @@ import { rollExpression } from './utils/dice.js';
 import GlobalModals from './components/Modals.jsx';
 import InitiativePanel from './components/InitiativePanel.jsx';
 import EditCharacterModal from './components/EditCharacterModal.jsx';
+import PresetsModal from './components/PresetsModal.jsx';
 
 const diceButtons = [
   { label: '🔺 d4', token: 'd4' },
@@ -661,6 +662,10 @@ export default function App() {
           <button className="btn" onClick={() => state.openModal('spellCatalog')}>
             🔮 Каталог заклинаний
           </button>
+
+          <button className="btn" onClick={() => state.openModal('presets')}>
+            📦 Пресеты
+          </button>
         </section>
 
         <section className="card space-y-2">
@@ -682,6 +687,7 @@ export default function App() {
 
         <GlobalModals />
         <EditCharacterModal />
+        <PresetsModal />
       </div>
     </main>
   );
