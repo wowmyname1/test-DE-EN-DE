@@ -1,10 +1,10 @@
 import { useAppStore } from '../../store/useAppStore.js';
-import { rollExpression } from '../../utils/dice.js';
 import {
   abilityModifier,
   formatModifier,
   toNumber,
 } from '../../utils/character.js';
+import { rollToTray } from '../../utils/diceActions.js';
 
 const hpBarColor = (percent) => {
   if (percent <= 0) {
@@ -61,31 +61,14 @@ export default function CharacterCompact({ character }) {
         ? `1d20+${strengthModifier}`
         : `1d20${strengthModifier}`;
 
-    try {
-      const result = rollExpression(formula);
-
-      useAppStore.getState().setDice({
-        lastResult: {
-          formula,
-          total: result.total,
-          details: result.details,
-          error: null,
-        },
-      });
-
-      useAppStore
-        .getState()
-        .addLog(`${character.name}: атака ${formula} = ${result.total}`);
-    } catch (error) {
-      useAppStore.getState().setDice({
-        lastResult: {
-          formula,
-          total: 0,
-          details: [],
-          error: error.message,
-        },
-      });
-    }
+    rollToTray({
+      formula,
+      label: 'Атака',
+      source: character.name,
+      effectType: 'attack',
+      character: null,
+      apply: false,
+    });
   };
 
   return (

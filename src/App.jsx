@@ -5,6 +5,7 @@ import CharacterDetailModal from './components/characters/CharacterDetailModal.j
 import MapBoard from './components/MapBoard.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import CharacterPanel from './components/characters/CharacterPanel.jsx';
+import DiceTray from './components/panels/DiceTray.jsx';
 import DiceBar from './components/panels/DiceBar.jsx';
 import { useCombatHotkeys } from './hooks/useCombatHotkeys.js';
 
@@ -21,6 +22,7 @@ export default function App() {
         <CharacterPanel side="npc" />
       </div>
 
+      <DiceTray />
       <DiceBar />
 
       <GlobalModals />

@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore.js';
 import { diceButtons, modes } from '../../constants/dice.js';
-import { rollQuick, rollAndApplyToCharacter } from '../../utils/diceActions.js';
+import {
+  rollManual,
+  rollQuick,
+  rollAndApplyToCharacter,
+} from '../../utils/diceActions.js';
 
 export default function DiceBar() {
   const state = useAppStore();
@@ -25,7 +29,7 @@ export default function DiceBar() {
     const quickRoll = state.quickRolls.find((item) => item.id === id);
 
     if (quickRoll) {
-      rollQuick(quickRoll.formula);
+      rollQuick(quickRoll);
     }
   };
 
@@ -121,7 +125,7 @@ export default function DiceBar() {
 
           <button
             className="btn btn-primary px-2 py-1 text-xs"
-            onClick={() => state.rollFormula()}
+            onClick={() => rollManual(state.dice.formula)}
           >
             🎲 Бросить
           </button>
