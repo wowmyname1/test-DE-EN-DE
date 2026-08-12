@@ -4,6 +4,7 @@ import './index.css';
 import './animations.css';
 import './store/extensions.js';
 import './store/statusEngine.js';
+import './store/characterExtensions.js';
 import App from './App.jsx';
 import SpellCaster from './components/SpellCaster.jsx';
 import DiceAnimation from './components/DiceAnimation.jsx';

@@ -1,6 +1,7 @@
 import GlobalModals from './components/Modals.jsx';
 import EditCharacterModal from './components/EditCharacterModal.jsx';
 import PresetsModal from './components/PresetsModal.jsx';
+import CharacterDetailModal from './components/characters/CharacterDetailModal.jsx';
 import MapBoard from './components/MapBoard.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import CharacterPanel from './components/characters/CharacterPanel.jsx';
@@ -25,6 +26,7 @@ export default function App() {
       <GlobalModals />
       <EditCharacterModal />
       <PresetsModal />
+      <CharacterDetailModal />
     </main>
   );
 }

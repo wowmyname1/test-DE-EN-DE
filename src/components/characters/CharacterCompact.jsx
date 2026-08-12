@@ -1,9 +1,10 @@
 import { useAppStore } from '../../store/useAppStore.js';
-
-const toNumber = (value, fallback = 0) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+import { rollExpression } from '../../utils/dice.js';
+import {
+  abilityModifier,
+  formatModifier,
+  toNumber,
+} from '../../utils/character.js';
 
 const hpBarColor = (percent) => {
   if (percent <= 0) {
@@ -50,11 +51,46 @@ export default function CharacterCompact({ character }) {
       : 0;
 
   const statusCount = (character.statuses || []).length;
+  const strengthModifier = abilityModifier(character.abilities?.strength);
+
+  const rollAttack = (event) => {
+    event.stopPropagation();
+
+    const formula =
+      strengthModifier >= 0
+        ? `1d20+${strengthModifier}`
+        : `1d20${strengthModifier}`;
+
+    try {
+      const result = rollExpression(formula);
+
+      useAppStore.getState().setDice({
+        lastResult: {
+          formula,
+          total: result.total,
+          details: result.details,
+          error: null,
+        },
+      });
+
+      useAppStore
+        .getState()
+        .addLog(`${character.name}: атака ${formula} = ${result.total}`);
+    } catch (error) {
+      useAppStore.getState().setDice({
+        lastResult: {
+          formula,
+          total: 0,
+          details: [],
+          error: error.message,
+        },
+      });
+    }
+  };
 
   return (
     <article
-      onClick={() => selectCharacter(character.id)}
-      onDoubleClick={() => openModal('editCharacter', { characterId: character.id })}
+      onClick={() => openModal('characterDetail', { characterId: character.id })}
       className={`card cursor-pointer border-2 p-2 ${
         isCurrent
           ? 'border-amber-400 bg-amber-950/20'
@@ -64,8 +100,15 @@ export default function CharacterCompact({ character }) {
       }`}
     >
       <div className="flex items-center justify-between gap-1">
-        <div className="truncate text-sm font-medium" style={{ color: character.color }}>
-          {character.name}
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium" style={{ color: character.color }}>
+            {character.name}
+          </div>
+
+          <div className="truncate text-[10px] text-slate-500">
+            {character.type || '—'}
+            {character.level ? ` • Ур. ${character.level}` : ''}
+          </div>
         </div>
 
         <div className="shrink-0 text-[10px] text-slate-500">
@@ -112,19 +155,39 @@ export default function CharacterCompact({ character }) {
             </span>
           )}
 
-          <span>AC {character.ac}</span>
+          <span title="Класс брони">AC {character.ac}</span>
 
           {statusCount > 0 && <span title="Статусы">✨{statusCount}</span>}
         </span>
       </div>
 
-      <div className="mt-1 flex gap-1" onClick={(event) => event.stopPropagation()}>
+      <div className="mt-1 text-[10px] text-slate-500">
+        Сила: {character.abilities?.strength ?? 10} ({formatModifier(strengthModifier)})
+      </div>
+
+      <div className="mt-1 flex flex-wrap gap-1" onClick={(event) => event.stopPropagation()}>
         <button
           className="btn px-2 py-0.5 text-[10px]"
-          title="Редактировать персонажа"
-          onClick={() => openModal('editCharacter', { characterId: character.id })}
+          title={`Быстрая атака: 1d20${formatModifier(strengthModifier)}`}
+          onClick={rollAttack}
         >
-          ✏️
+          ⚔️ Атака
+        </button>
+
+        <button
+          className="btn px-2 py-0.5 text-[10px]"
+          title="Применить заклинание"
+          onClick={() => openModal('castSpell', {})}
+        >
+          🔮 Заклинание
+        </button>
+
+        <button
+          className="btn px-2 py-0.5 text-[10px]"
+          title="Выбрать целью"
+          onClick={() => selectCharacter(character.id)}
+        >
+          🎯
         </button>
 
         <button
