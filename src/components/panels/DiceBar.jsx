@@ -6,6 +6,7 @@ import {
   rollQuick,
   rollAndApplyToCharacter,
 } from '../../utils/diceActions.js';
+import { applyLastDiceByMode } from '../../utils/applyFlow.js';
 
 export default function DiceBar() {
   const state = useAppStore();
@@ -15,11 +16,17 @@ export default function DiceBar() {
   const [logsOpen, setLogsOpen] = useState(false);
 
   const allCharacters = [...state.players, ...state.npcs];
+
   const targetId =
-    state.selectedCharacterId || state.initiativeOrder[state.turnIndex ?? -1];
+    state.selectedCharacterId || state.initiativeOrder[state.turnIndex ?? -1] || '';
+
   const targetCharacter = allCharacters.find((character) => character.id === targetId);
 
-  const canApply = Boolean(targetCharacter && state.dice.lastResult?.total > 0);
+  const setTarget = (id) => {
+    useAppStore.setState({
+      selectedCharacterId: id || null,
+    });
+  };
 
   const handleQuickRollChange = (event) => {
     const id = event.target.value;
@@ -33,11 +40,48 @@ export default function DiceBar() {
     }
   };
 
+  const mode = state.dice.mode || 'single';
+
+  const sideLabel =
+    targetCharacter?.side === 'player'
+      ? 'игрокам'
+      : targetCharacter?.side === 'npc'
+        ? 'NPC'
+        : 'персонажам';
+
+  const modeHint =
+    mode === 'single'
+      ? 'Применяется к выбранной цели.'
+      : mode === 'aoe'
+        ? `Применяется ко всем ${sideLabel} одной стороной.`
+        : `Отдельный бросок по каждому из ${sideLabel} той же стороны.`;
+
+  const canApplyLast = Boolean(
+    state.dice.lastResult &&
+      !state.dice.lastResult.error &&
+      state.dice.lastResult.formula
+  );
+
   return (
     <footer className="border-t border-slate-800 bg-slate-950 p-2">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="text-xs text-slate-400">
-          💾Персонаж{targetCharacter ? targetCharacter.name : '0'}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-slate-400">💾Персонаж</span>
+
+          <select
+            className="input h-8 w-auto max-w-44 px-2 py-1 text-xs"
+            value={targetId}
+            onChange={(event) => setTarget(event.target.value)}
+            title="Выбрать цель"
+          >
+            <option value="">не выбран</option>
+
+            {allCharacters.map((character) => (
+              <option key={character.id} value={character.id}>
+                {character.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center gap-1">
@@ -57,7 +101,7 @@ export default function DiceBar() {
           <button
             className="btn px-2 py-1 text-xs disabled:opacity-50"
             disabled={!targetCharacter}
-            title="Бросить кубик и нанести урон"
+            title="Бросить кубик и нанести урон выбранной цели"
             onClick={() =>
               targetCharacter && rollAndApplyToCharacter(targetCharacter, quickDie, 'damage')
             }
@@ -68,7 +112,7 @@ export default function DiceBar() {
           <button
             className="btn px-2 py-1 text-xs disabled:opacity-50"
             disabled={!targetCharacter}
-            title="Бросить кубик и вылечить"
+            title="Бросить кубик и вылечить выбранную цель"
             onClick={() =>
               targetCharacter && rollAndApplyToCharacter(targetCharacter, quickDie, 'healing')
             }
@@ -79,7 +123,7 @@ export default function DiceBar() {
           <button
             className="btn px-2 py-1 text-xs disabled:opacity-50"
             disabled={!targetCharacter}
-            title="Бросить кубик и дать временные HP"
+            title="Бросить кубик и дать временные HP выбранной цели"
             onClick={() =>
               targetCharacter && rollAndApplyToCharacter(targetCharacter, quickDie, 'temp')
             }
@@ -131,29 +175,33 @@ export default function DiceBar() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1">
-          {modes.map((mode) => (
-            <button
-              key={mode.value}
-              className={`btn px-2 py-1 text-[10px] ${
-                state.dice.mode === mode.value ? 'btn-primary' : ''
-              }`}
-              title={mode.label}
-              onClick={() => state.setDice({ mode: mode.value })}
-            >
-              {mode.value === 'single' ? '1' : mode.value === 'aoe' ? '2' : '3'}
-            </button>
-          ))}
+        <div className="flex flex-col gap-0">
+          <div className="flex items-center gap-1">
+            {modes.map((modeItem) => (
+              <button
+                key={modeItem.value}
+                className={`btn px-2 py-1 text-[10px] ${
+                  state.dice.mode === modeItem.value ? 'btn-primary' : ''
+                }`}
+                title={modeItem.label}
+                onClick={() => state.setDice({ mode: modeItem.value })}
+              >
+                {modeItem.value === 'single' ? '1' : modeItem.value === 'aoe' ? '2' : '3'}
+              </button>
+            ))}
 
-          <button
-            className="btn btn-danger px-2 py-1 text-[10px]"
-            title="Сбросить кубики"
-            onClick={() =>
-              state.setDice({ formula: '', lastResult: null, mode: 'single' })
-            }
-          >
-            ✕ Сбросить ?
-          </button>
+            <button
+              className="btn btn-danger px-2 py-1 text-[10px]"
+              title="Сбросить кубики"
+              onClick={() =>
+                state.setDice({ formula: '', lastResult: null, mode: 'single' })
+              }
+            >
+              ✕ Сбросить ?
+            </button>
+          </div>
+
+          <div className="text-[10px] text-slate-500">{modeHint}</div>
         </div>
 
         <div className="flex items-center gap-1">
@@ -196,27 +244,27 @@ export default function DiceBar() {
         <div className="flex items-center gap-1">
           <button
             className="btn px-2 py-1 text-xs disabled:opacity-50"
-            disabled={!canApply}
-            title="Применить последний бросок как урон (D)"
-            onClick={() => state.applyLastRollToCharacter('damage')}
+            disabled={!canApplyLast}
+            title="Применить последний бросок как урон с учётом режима (D)"
+            onClick={() => applyLastDiceByMode('damage')}
           >
             ⚔️D
           </button>
 
           <button
             className="btn px-2 py-1 text-xs disabled:opacity-50"
-            disabled={!canApply}
-            title="Применить последний бросок как лечение (H)"
-            onClick={() => state.applyLastRollToCharacter('healing')}
+            disabled={!canApplyLast}
+            title="Применить последний бросок как лечение с учётом режима (H)"
+            onClick={() => applyLastDiceByMode('healing')}
           >
             💚H
           </button>
 
           <button
             className="btn px-2 py-1 text-xs disabled:opacity-50"
-            disabled={!canApply}
-            title="Применить последний бросок как временные HP (T)"
-            onClick={() => state.applyLastRollToCharacter('temp')}
+            disabled={!canApplyLast}
+            title="Применить последний бросок как временные HP с учётом режима (T)"
+            onClick={() => applyLastDiceByMode('temp')}
           >
             🛡️T
           </button>

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
+import { applyLastDiceByMode } from '../utils/applyFlow.js';
 
 export function useCombatHotkeys() {
   useEffect(() => {
@@ -39,15 +40,15 @@ export function useCombatHotkeys() {
       }
 
       if (event.code === 'KeyD') {
-        store.applyLastRollToCharacter('damage');
+        applyLastDiceByMode('damage');
       }
 
       if (event.code === 'KeyH') {
-        store.applyLastRollToCharacter('healing');
+        applyLastDiceByMode('healing');
       }
 
       if (event.code === 'KeyT') {
-        store.applyLastRollToCharacter('temp');
+        applyLastDiceByMode('temp');
       }
     };
 
