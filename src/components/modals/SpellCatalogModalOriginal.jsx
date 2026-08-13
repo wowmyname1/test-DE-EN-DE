@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore.js';
+import { useSpellCastStore } from '../../store/spellCastStore.js';
 import { SPELL_CATALOG } from '../../data/spellCatalog.js';
 
 const LEVEL_LABELS = {
@@ -14,6 +15,8 @@ const LEVEL_LABELS = {
 function SpellCatalogModalOriginalInner() {
   const closeModal = useAppStore((state) => state.closeModal);
   const spells = useAppStore((state) => state.spells || []);
+  const startSpellCast = useSpellCastStore((state) => state.startSpellCast);
+  const addLog = useAppStore((state) => state.addLog);
 
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
@@ -25,6 +28,12 @@ function SpellCatalogModalOriginalInner() {
     const matchesLevel = levelFilter === '' || spell.level === parseInt(levelFilter, 10);
     return matchesSearch && matchesLevel;
   });
+
+  const handleCast = (spell) => {
+    startSpellCast(spell);
+    closeModal();
+    addLog(`🔮 Творим: ${spell.name}. Выберите цель.`);
+  };
 
   return (
     <div
@@ -101,7 +110,10 @@ function SpellCatalogModalOriginalInner() {
 
               <div className="mt-2 flex gap-2">
                 <button className="btn flex-1 px-2 py-1 text-xs">✏️ Редакт.</button>
-                <button className="btn flex-1 px-2 py-1 text-xs hover:border-amber-500 hover:text-amber-400">
+                <button
+                  className="btn flex-1 px-2 py-1 text-xs hover:border-amber-500 hover:text-amber-400"
+                  onClick={() => handleCast(spell)}
+                >
                   🎯 Сотворить
                 </button>
               </div>

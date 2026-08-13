@@ -12,6 +12,7 @@ import ToastLayer from './components/effects/ToastLayer.jsx';
 import AddStatusModalOriginal from './components/modals/AddStatusModalOriginal.jsx';
 import SpellCatalogModalOriginal from './components/modals/SpellCatalogModalOriginal.jsx';
 import StatusCatalogModalOriginal from './components/modals/StatusCatalogModalOriginal.jsx';
+import SpellCastOverlay from './components/overlays/SpellCastOverlay.jsx';
 import { useOriginalDiceHotkeys } from './hooks/useOriginalDiceHotkeys.js';
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
           <AddStatusModalOriginal />
       <SpellCatalogModalOriginal />
       <StatusCatalogModalOriginal />
+      <SpellCastOverlay />
     </main>
   );
 }
