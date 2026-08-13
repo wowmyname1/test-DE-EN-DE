@@ -10,6 +10,8 @@ import OriginalDicePanel from './components/panels/OriginalDicePanel.jsx';
 import OriginalOverlays from './components/overlays/OriginalOverlays.jsx';
 import ToastLayer from './components/effects/ToastLayer.jsx';
 import AddStatusModalOriginal from './components/modals/AddStatusModalOriginal.jsx';
+import SpellCatalogModalOriginal from './components/modals/SpellCatalogModalOriginal.jsx';
+import StatusCatalogModalOriginal from './components/modals/StatusCatalogModalOriginal.jsx';
 import { useOriginalDiceHotkeys } from './hooks/useOriginalDiceHotkeys.js';
 
 export default function App() {
@@ -35,6 +37,8 @@ export default function App() {
       <OriginalOverlays />
       <ToastLayer />
           <AddStatusModalOriginal />
+      <SpellCatalogModalOriginal />
+      <StatusCatalogModalOriginal />
     </main>
   );
 }

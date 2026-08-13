@@ -1240,8 +1240,8 @@ export default function GlobalModals() {
       {activeModal === 'addCharacter' && <AddCharacterModal />}
       {/* addStatus рендерится через AddStatusModalOriginal */}
       {activeModal === 'addQuickRoll' && <AddQuickRollModal />}
-      {activeModal === 'statusCatalog' && <StatusCatalogModal />}
-      {activeModal === 'spellCatalog' && <SpellCatalogModal />}
+      {/* statusCatalog рендерится через StatusCatalogModalOriginal */}
+      {/* spellCatalog рендерится через SpellCatalogModalOriginal */}
       {activeModal === 'statusConstructor' && <StatusConstructorV2 />}
       {activeModal === 'spellConstructor' && <SpellConstructorModal />}
     </>
