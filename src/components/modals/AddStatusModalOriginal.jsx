@@ -161,7 +161,9 @@ function AddStatusModalOriginalInner() {
                   type="number"
                   min={1}
                   value={duration}
-                  onChange={(event) => setDuration(parseInt(event.target.value, 10) || 1)}
+                  onChange={(event) =>
+                    setDuration(parseInt(event.target.value, 10) || 1)
+                  }
                 />
                 <span className="text-xs text-slate-400">раундов</span>
               </div>
