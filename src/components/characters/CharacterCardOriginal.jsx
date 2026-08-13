@@ -11,9 +11,14 @@ import {
 } from '../../utils/hpEffects.js';
 import { applySpreadToCharacter } from '../../utils/rollApplication.js';
 import { deleteQuickRollFromCharacter } from '../../utils/characterQuickRolls.js';
+import { useSpellCastStore } from '../../store/spellCastStore.js';
 
 export default function CharacterCardOriginal({ character }) {
   const activeRoll = useActiveRollStore((state) => state.activeRoll);
+  const spellCastActiveSpell = useSpellCastStore((state) => state.activeSpell);
+  const spellCastSelecting = useSpellCastStore((state) => state.selecting);
+  const spellCastTargets = useSpellCastStore((state) => state.targets);
+  const spellCastToggleTarget = useSpellCastStore((state) => state.toggleTarget);
   const toggleAoeTarget = useActiveRollStore((state) => state.toggleAoeTarget);
   const rollQuickFormula = useActiveRollStore((state) => state.rollQuickFormula);
 
@@ -45,6 +50,7 @@ export default function CharacterCardOriginal({ character }) {
   const isActiveTurn = currentId === character.id;
   const isDead = hpCurrent <= 0;
   const isAoeTarget =
+  const isSpellTarget = spellCastActiveSpell && spellCastSelecting && spellCastTargets.includes(character.id);
     activeRoll &&
     activeRoll.mode === 'aoe' &&
     activeRoll.aoeTargets.includes(character.id);
@@ -141,6 +147,8 @@ export default function CharacterCardOriginal({ character }) {
       className={`card cursor-pointer border-2 p-2 ${
         isActiveTurn
           ? 'border-amber-400 bg-amber-950/20'
+          : isSpellTarget
+          ? 'border-purple-500 bg-purple-950/20'
           : isAoeTarget
             ? 'border-red-500 bg-red-950/20'
             : 'border-slate-800'
