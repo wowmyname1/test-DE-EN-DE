@@ -55,9 +55,7 @@ function SpellCastLogView() {
 function SpellCastButton() {
   const activeSpell = useSpellCastStore((state) => state.activeSpell);
   const targets = useSpellCastStore((state) => state.targets);
-  const selecting = useSpellCastStore((state) => state.selecting);
   const cancelSpellCast = useSpellCastStore((state) => state.cancelSpellCast);
-  const executeSpell = useSpellCastStore((state) => state.executeSpell);
 
   const players = useAppStore((state) => state.players);
   const npcs = useAppStore((state) => state.npcs);
@@ -65,10 +63,6 @@ function SpellCastButton() {
   const currentTurnId = useAppStore(
     (state) => state.initiativeOrder[state.turnIndex ?? -1]
   );
-  const applyDamage = useAppStore((state) => state.applyDamage);
-  const applyHeal = useAppStore((state) => state.applyHeal);
-  const applyTempHp = useAppStore((state) => state.applyTempHp);
-  const addStatusToCharacter = useAppStore((state) => state.addStatusToCharacter);
   const addLog = useAppStore((state) => state.addLog);
 
   if (!activeSpell) return null;
@@ -87,7 +81,6 @@ function SpellCastButton() {
     }
 
     const dc = activeSpell.logic?.save ? 13 : 10;
-
     const log = { spell: activeSpell, dc, results: [] };
 
     spellTargets.forEach((charId) => {
@@ -113,7 +106,6 @@ function SpellCastButton() {
       }
     });
 
-    useSpellCastStore.getState().clearCastLog();
     useSpellCastStore.setState({ castLog: log });
 
     setTimeout(() => {
@@ -123,19 +115,21 @@ function SpellCastButton() {
   };
 
   const applySpellEffect = (charId, effect, success) => {
+    const appStore = useAppStore.getState();
+
     if (effect.type === 'damage') {
       const formula = effect.formula || '1d6';
       const result = parseDiceExpression(formula);
-      const damage = success && effect.type === 'damage' && activeSpell.logic?.onSuccess
+      const damage = success && activeSpell.logic?.onSuccess
         ? Math.ceil(result.total / 2)
         : result.total;
-      applyDamage(charId, damage);
+      appStore.applyDamage(charId, damage);
     } else if (effect.type === 'heal') {
       const formula = effect.formula || '1d8';
       const result = parseDiceExpression(formula);
-      applyHeal(charId, result.total);
+      appStore.applyHeal(charId, result.total);
     } else if (effect.type === 'applyStatus') {
-      addStatusToCharacter(charId, {
+      appStore.addStatusToCharacter(charId, {
         name: effect.statusId || 'Статус',
         icon: '✨',
         color: '#a855f7',
@@ -159,8 +153,6 @@ function SpellCastButton() {
       >
         ✕ Отмена
       </button>
-
-      <SpellCastLogView />
     </>
   );
 }
