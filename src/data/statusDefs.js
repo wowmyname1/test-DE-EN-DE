@@ -1,3 +1,18 @@
+export const COLORS = [
+  '#e94560',
+  '#3a86ff',
+  '#4ecca3',
+  '#f5a623',
+  '#8338ec',
+  '#ff6b6b',
+  '#48dbfb',
+  '#ff9ff3',
+  '#54a0ff',
+  '#5f27cd',
+  '#01a3a4',
+  '#f368e0',
+];
+
 export const STATUS_DEFS = {
   permanent: [
     { id: 'blinded', name: 'Ослеплён', icon: '👁️', color: '#555' },
@@ -16,6 +31,7 @@ export const STATUS_DEFS = {
     { id: 'unconscious', name: 'Без сознания', icon: '😴', color: '#2c3e50' },
     { id: 'exhaustion', name: 'Истощение', icon: '🥵', color: '#8e44ad' },
   ],
+
   timed: [
     { id: 'rage', name: 'Ярость', icon: '🔥', color: '#e74c3c' },
     { id: 'blessed', name: 'Благословение', icon: '✨', color: '#f1c40f' },
