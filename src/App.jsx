@@ -2,11 +2,13 @@ import GlobalModals from './components/Modals.jsx';
 import EditCharacterModal from './components/EditCharacterModal.jsx';
 import PresetsModal from './components/PresetsModal.jsx';
 import CharacterDetailModal from './components/characters/CharacterDetailModal.jsx';
+import CharacterQuickRollModal from './components/modals/CharacterQuickRollModal.jsx';
 import MapBoard from './components/MapBoard.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import CharacterPanel from './components/characters/CharacterPanel.jsx';
 import OriginalDicePanel from './components/panels/OriginalDicePanel.jsx';
 import OriginalOverlays from './components/overlays/OriginalOverlays.jsx';
+import ToastLayer from './components/effects/ToastLayer.jsx';
 import { useOriginalDiceHotkeys } from './hooks/useOriginalDiceHotkeys.js';
 
 export default function App() {
@@ -28,7 +30,9 @@ export default function App() {
       <EditCharacterModal />
       <PresetsModal />
       <CharacterDetailModal />
+      <CharacterQuickRollModal />
       <OriginalOverlays />
+      <ToastLayer />
     </main>
   );
 }

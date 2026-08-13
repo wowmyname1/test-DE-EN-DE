@@ -29,5 +29,8 @@ export const ensureCharacterExtras = (character) => {
       ...defaultAbilities,
       ...(character.abilities || {}),
     },
+    quickRolls: Array.isArray(character.quickRolls)
+      ? character.quickRolls
+      : [],
   };
 };

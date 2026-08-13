@@ -10,6 +10,7 @@ import {
   applyOriginalTempHp,
 } from '../../utils/hpEffects.js';
 import { applySpreadToCharacter } from '../../utils/rollApplication.js';
+import { deleteQuickRollFromCharacter } from '../../utils/characterQuickRolls.js';
 
 export default function CharacterCardOriginal({ character }) {
   const activeRoll = useActiveRollStore((state) => state.activeRoll);
@@ -294,18 +295,32 @@ export default function CharacterCardOriginal({ character }) {
         </button>
 
         {quickRolls.map((quickRoll) => (
-          <button
+          <div
             key={quickRoll.id}
-            className="btn px-2 py-0.5 text-[10px]"
-            onClick={() => rollQuickFormula(quickRoll.formula)}
+            className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px]"
           >
-            {quickRoll.name}: {quickRoll.formula}
-          </button>
+            <button onClick={() => rollQuickFormula(quickRoll.formula)}>
+              {quickRoll.name}: {quickRoll.formula}
+            </button>
+
+            <button
+              className="text-slate-500 hover:text-red-400"
+              title="Удалить быстрый бросок"
+              onClick={(event) => {
+                event.stopPropagation();
+                deleteQuickRollFromCharacter(character.id, quickRoll.id);
+              }}
+            >
+              ✕
+            </button>
+          </div>
         ))}
 
         <button
           className="btn px-2 py-0.5 text-[10px]"
-          onClick={() => openModal('addQuickRoll')}
+          onClick={() =>
+            openModal('quickRollCharacter', { characterId: character.id })
+          }
         >
           + бросок
         </button>

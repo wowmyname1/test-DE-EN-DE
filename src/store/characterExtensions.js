@@ -30,6 +30,7 @@ const normalizeRichCharacter = (side, data) => {
       ...defaultAbilities,
       ...(data.abilities || {}),
     },
+    quickRolls: Array.isArray(data.quickRolls) ? data.quickRolls : [],
     statuses: [],
   };
 };
@@ -72,10 +73,18 @@ const applyCharacterExtensions = () => {
     return;
   }
 
-  useAppStore.setState((state) => ({
-    players: state.players.map(ensureCharacterExtras),
-    npcs: state.npcs.map(ensureCharacterExtras),
-  }));
+  const migrateCharacters = () => {
+    useAppStore.setState((state) => ({
+      players: state.players.map(ensureCharacterExtras),
+      npcs: state.npcs.map(ensureCharacterExtras),
+    }));
+  };
+
+  migrateCharacters();
+
+  if (useAppStore.persist?.onFinishHydration) {
+    useAppStore.persist.onFinishHydration(migrateCharacters);
+  }
 
   useAppStore.setState({
     __characterExtensionsApplied: true,

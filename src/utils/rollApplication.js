@@ -2,6 +2,7 @@ import { useActiveRollStore } from '../store/activeRollStore.js';
 import { useAppStore } from '../store/useAppStore.js';
 import { getSelectedSum } from './originalDice.js';
 import { applyOriginalDamage } from './hpEffects.js';
+import { showToast } from '../store/toastStore.js';
 
 export const applyAoE = () => {
   const store = useActiveRollStore.getState();
@@ -31,6 +32,8 @@ export const applyAoE = () => {
   useAppStore
     .getState()
     .addLog(`AoE: ${amount} урона по ${activeRoll.aoeTargets.length} целям`);
+
+  showToast(`💥 AoE: ${amount} урона по ${activeRoll.aoeTargets.length} целям`);
 };
 
 export const applySpreadToCharacter = (characterId) => {
@@ -46,7 +49,7 @@ export const applySpreadToCharacter = (characterId) => {
   );
 
   if (!selectedDice.length) {
-    useAppStore.getState().addLog('Разброс: сначала выбери кубик');
+    showToast('Выберите кубик для разброса');
     return false;
   }
 
@@ -75,6 +78,8 @@ export const applySpreadToCharacter = (characterId) => {
   useAppStore
     .getState()
     .addLog(`Разброс: осталось выбранных кубиков: ${remainingSelected}`);
+
+  showToast(`Осталось кубиков: ${remainingSelected}`);
 
   return true;
 };
