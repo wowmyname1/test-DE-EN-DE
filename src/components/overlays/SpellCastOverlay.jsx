@@ -55,7 +55,9 @@ function SpellCastLogView() {
 function SpellCastButton() {
   const activeSpell = useSpellCastStore((state) => state.activeSpell);
   const targets = useSpellCastStore((state) => state.targets);
+  const selecting = useSpellCastStore((state) => state.selecting);
   const cancelSpellCast = useSpellCastStore((state) => state.cancelSpellCast);
+  const toggleTarget = useSpellCastStore((state) => state.toggleTarget);
 
   const players = useAppStore((state) => state.players);
   const npcs = useAppStore((state) => state.npcs);
@@ -63,17 +65,28 @@ function SpellCastButton() {
   const currentTurnId = useAppStore(
     (state) => state.initiativeOrder[state.turnIndex ?? -1]
   );
+  const applyDamage = useAppStore((state) => state.applyDamage);
+  const applyHeal = useAppStore((state) => state.applyHeal);
+  const applyTempHp = useAppStore((state) => state.applyTempHp);
+  const addStatusToCharacter = useAppStore((state) => state.addStatusToCharacter);
   const addLog = useAppStore((state) => state.addLog);
 
   if (!activeSpell) return null;
 
   const allCharacters = [...players, ...npcs];
-  const targetId = selectedCharacterId || currentTurnId;
+  const targetMode = activeSpell.logic?.targetMode || 'single';
 
   const handleCast = () => {
     if (!activeSpell) return;
 
-    const spellTargets = targets.length > 0 ? targets : targetId ? [targetId] : [];
+    let spellTargets = [];
+
+    if (targetMode === 'single') {
+      const singleTarget = selectedCharacterId || currentTurnId;
+      if (singleTarget) spellTargets = [singleTarget];
+    } else if (targetMode === 'aoe' || targetMode === 'spread') {
+      spellTargets = targets.length > 0 ? targets : allCharacters.map((c) => c.id);
+    }
 
     if (spellTargets.length === 0) {
       addLog('Выберите цель для заклинания');
@@ -140,6 +153,12 @@ function SpellCastButton() {
 
   return (
     <>
+      {selecting && targetMode !== 'single' && (
+        <div className="fixed bottom-40 left-1/2 z-[1500] -translate-x-1/2 rounded-lg bg-purple-900/80 px-4 py-2 text-sm text-purple-200">
+          🔮 Выберите цели кликами по карточкам ({targets.length} выбрано)
+        </div>
+      )}
+
       <button
         className="fixed bottom-28 left-1/2 z-[1500] -translate-x-1/2 rounded-lg bg-purple-600 px-6 py-3 font-bold text-white shadow-lg transition hover:bg-purple-500"
         onClick={handleCast}
