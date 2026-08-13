@@ -1238,7 +1238,7 @@ export default function GlobalModals() {
   return (
     <>
       {activeModal === 'addCharacter' && <AddCharacterModal />}
-      {activeModal === 'addStatus' && <AddStatusModal />}
+      {/* addStatus рендерится через AddStatusModalOriginal */}
       {activeModal === 'addQuickRoll' && <AddQuickRollModal />}
       {activeModal === 'statusCatalog' && <StatusCatalogModal />}
       {activeModal === 'spellCatalog' && <SpellCatalogModal />}
