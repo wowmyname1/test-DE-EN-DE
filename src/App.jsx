@@ -5,12 +5,11 @@ import CharacterDetailModal from './components/characters/CharacterDetailModal.j
 import MapBoard from './components/MapBoard.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import CharacterPanel from './components/characters/CharacterPanel.jsx';
-import DiceTray from './components/panels/DiceTray.jsx';
-import DiceBar from './components/panels/DiceBar.jsx';
-import { useCombatHotkeys } from './hooks/useCombatHotkeys.js';
+import OriginalDicePanel from './components/panels/OriginalDicePanel.jsx';
+import { useOriginalDiceHotkeys } from './hooks/useOriginalDiceHotkeys.js';
 
 export default function App() {
-  useCombatHotkeys();
+  useOriginalDiceHotkeys();
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
@@ -22,8 +21,7 @@ export default function App() {
         <CharacterPanel side="npc" />
       </div>
 
-      <DiceTray />
-      <DiceBar />
+      <OriginalDicePanel />
 
       <GlobalModals />
       <EditCharacterModal />
