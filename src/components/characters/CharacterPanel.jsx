@@ -1,5 +1,5 @@
 import { useAppStore } from '../../store/useAppStore.js';
-import CharacterCompact from './CharacterCompact.jsx';
+import CharacterCardOriginal from './CharacterCardOriginal.jsx';
 
 export default function CharacterPanel({ side }) {
   const characters = useAppStore((state) =>
@@ -12,7 +12,7 @@ export default function CharacterPanel({ side }) {
   const addLabel = side === 'player' ? '+ Добавить игрока' : '+ Добавить NPC';
 
   return (
-    <aside className="flex w-52 min-h-0 flex-col gap-2 md:w-60">
+    <aside className="flex w-56 min-h-0 flex-col gap-2 md:w-72">
       <div className="flex items-center justify-between gap-1">
         <h2 className="text-sm font-semibold">
           {title} {characters.length}
@@ -28,7 +28,7 @@ export default function CharacterPanel({ side }) {
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {characters.map((character) => (
-          <CharacterCompact key={character.id} character={character} />
+          <CharacterCardOriginal key={character.id} character={character} />
         ))}
 
         {characters.length === 0 && (

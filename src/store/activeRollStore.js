@@ -87,6 +87,31 @@ export const useActiveRollStore = create((set, get) => ({
     });
   },
 
+  spendDie: (dieId) => {
+    set((state) => {
+      if (!state.activeRoll) {
+        return {};
+      }
+
+      return {
+        activeRoll: {
+          ...state.activeRoll,
+          dice: state.activeRoll.dice.map((die) => {
+            if (die.id !== dieId) {
+              return die;
+            }
+
+            return {
+              ...die,
+              spent: true,
+              selected: false,
+            };
+          }),
+        },
+      };
+    });
+  },
+
   setRollMode: (mode) => {
     set((state) => {
       if (!state.activeRoll) {
@@ -117,6 +142,21 @@ export const useActiveRollStore = create((set, get) => ({
           aoeTargets: already
             ? state.activeRoll.aoeTargets.filter((id) => id !== characterId)
             : [...state.activeRoll.aoeTargets, characterId],
+        },
+      };
+    });
+  },
+
+  clearAoeTargets: () => {
+    set((state) => {
+      if (!state.activeRoll) {
+        return {};
+      }
+
+      return {
+        activeRoll: {
+          ...state.activeRoll,
+          aoeTargets: [],
         },
       };
     });

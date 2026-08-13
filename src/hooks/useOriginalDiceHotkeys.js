@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore.js';
 import { useActiveRollStore } from '../store/activeRollStore.js';
+import { useTargetingStore } from '../store/targetingStore.js';
 import { getSelectedSum } from '../utils/originalDice.js';
-import { applyAmountToCharacterStore } from '../utils/diceActions.js';
+import { applyOriginalHpEffect } from '../utils/hpEffects.js';
+import { applyAoE } from '../utils/rollApplication.js';
 
 export function useOriginalDiceHotkeys() {
   useEffect(() => {
@@ -30,13 +32,16 @@ export function useOriginalDiceHotkeys() {
       }
 
       const rollStore = useActiveRollStore.getState();
+      const targetingStore = useTargetingStore.getState();
       const activeRoll = rollStore.activeRoll;
 
-      if (!activeRoll) {
-        if (event.code === 'Escape') {
-          rollStore.clearActiveRoll();
-        }
+      if (event.code === 'Escape') {
+        targetingStore.closeHpPopup();
+        rollStore.clearActiveRoll();
+        return;
+      }
 
+      if (!activeRoll) {
         return;
       }
 
@@ -55,17 +60,15 @@ export function useOriginalDiceHotkeys() {
         return;
       }
 
-      if (event.code === 'Escape') {
-        rollStore.clearActiveRoll();
+      if (event.code === 'Enter' && activeRoll.mode === 'aoe') {
+        applyAoE();
         return;
       }
 
       if (activeRoll.mode === 'single') {
-        const targetId =
-          appStore.selectedCharacterId ||
-          appStore.initiativeOrder[appStore.turnIndex ?? -1];
+        const lastTargetId = targetingStore.lastTargetId;
 
-        if (!targetId) {
+        if (!lastTargetId) {
           return;
         }
 
@@ -76,21 +79,18 @@ export function useOriginalDiceHotkeys() {
         }
 
         if (event.code === 'KeyD') {
-          applyAmountToCharacterStore(targetId, 'damage', amount);
+          applyOriginalHpEffect(lastTargetId, 'damage', amount);
           rollStore.clearSelection();
-          appStore.addLog(`Оригинальный бросок: урон ${amount}`);
         }
 
         if (event.code === 'KeyH') {
-          applyAmountToCharacterStore(targetId, 'healing', amount);
+          applyOriginalHpEffect(lastTargetId, 'heal', amount);
           rollStore.clearSelection();
-          appStore.addLog(`Оригинальный бросок: лечение ${amount}`);
         }
 
         if (event.code === 'KeyT') {
-          applyAmountToCharacterStore(targetId, 'temp', amount);
+          applyOriginalHpEffect(lastTargetId, 'temp', amount);
           rollStore.clearSelection();
-          appStore.addLog(`Оригинальный бросок: временные HP ${amount}`);
         }
       }
     };

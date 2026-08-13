@@ -6,6 +6,7 @@ import MapBoard from './components/MapBoard.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import CharacterPanel from './components/characters/CharacterPanel.jsx';
 import OriginalDicePanel from './components/panels/OriginalDicePanel.jsx';
+import OriginalOverlays from './components/overlays/OriginalOverlays.jsx';
 import { useOriginalDiceHotkeys } from './hooks/useOriginalDiceHotkeys.js';
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
       <EditCharacterModal />
       <PresetsModal />
       <CharacterDetailModal />
+      <OriginalOverlays />
     </main>
   );
 }
