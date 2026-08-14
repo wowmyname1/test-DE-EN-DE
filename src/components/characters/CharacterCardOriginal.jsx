@@ -149,6 +149,8 @@ export default function CharacterCardOriginal({ character }) {
           ? 'border-amber-400 bg-amber-950/20'
           : isSpellTarget
           ? 'border-purple-500 bg-purple-950/20'
+          : isSpellTarget
+          ? 'border-purple-500 bg-purple-950/20'
           : isAoeTarget
             ? 'border-red-500 bg-red-950/20'
             : 'border-slate-800'
